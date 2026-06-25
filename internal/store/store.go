@@ -209,8 +209,8 @@ func parseSQLScript(script string) []Query {
 	var qs []Query
 	for _, stmt := range splitStatements(script) {
 		stmt = strings.TrimSpace(stmt)
-		if stmt == "" {
-			continue
+		if stmt == "" || !hasSQLContent(stmt) {
+			continue // skip blank chunks and comment-only trailers
 		}
 		qs = append(qs, Query{
 			Name:    deriveName(stmt, len(qs)+1),
@@ -221,16 +221,37 @@ func parseSQLScript(script string) []Query {
 	return qs
 }
 
-// splitStatements splits on semicolons that are not inside single/double quotes
-// or dollar-quoted strings. Good enough for typical audit extract scripts.
+// splitStatements splits on semicolons that are not inside single/double quotes,
+// dollar-quoted strings, or comments (-- line and /* block */). Keeping comments
+// intact lets deriveName use the text just before a query as its name.
 func splitStatements(s string) []string {
 	var out []string
 	var b strings.Builder
-	var inSingle, inDouble bool
+	var inSingle, inDouble, inLine, inBlock bool
 	var dollarTag string
 	runes := []rune(s)
 	for i := 0; i < len(runes); i++ {
 		c := runes[i]
+		var next rune
+		if i+1 < len(runes) {
+			next = runes[i+1]
+		}
+		if inLine {
+			b.WriteRune(c)
+			if c == '\n' {
+				inLine = false
+			}
+			continue
+		}
+		if inBlock {
+			b.WriteRune(c)
+			if c == '*' && next == '/' {
+				b.WriteRune(next)
+				i++
+				inBlock = false
+			}
+			continue
+		}
 		if dollarTag != "" {
 			b.WriteRune(c)
 			if c == '$' {
@@ -260,6 +281,12 @@ func splitStatements(s string) []string {
 			b.WriteRune(c)
 		case c == '"':
 			inDouble = true
+			b.WriteRune(c)
+		case c == '-' && next == '-':
+			inLine = true
+			b.WriteRune(c)
+		case c == '/' && next == '*':
+			inBlock = true
 			b.WriteRune(c)
 		case c == '$':
 			// detect a dollar-quote opening tag like $$ or $tag$
@@ -302,18 +329,65 @@ func dollarOpen(s string) string {
 	return ""
 }
 
-// deriveName builds a human-friendly name from the first meaningful line of a
-// statement, or falls back to a numbered default.
+// deriveName names a statement after the comment immediately preceding the query
+// (the text just before it). With several leading comment lines it uses the last
+// one (closest to the query). With no comment it falls back to the first SQL line,
+// then to a numbered default.
 func deriveName(stmt string, n int) string {
-	for _, line := range strings.Split(stmt, "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "--") {
+	lastComment := ""
+	for _, raw := range strings.Split(stmt, "\n") {
+		line := strings.TrimSpace(raw)
+		if line == "" {
 			continue
 		}
-		if len(line) > 60 {
-			line = line[:60]
+		if isComment(line) {
+			if t := commentText(line); t != "" {
+				lastComment = t
+			}
+			continue
 		}
-		return line
+		// First real SQL line.
+		if lastComment != "" {
+			return truncateName(lastComment)
+		}
+		return truncateName(line)
+	}
+	if lastComment != "" {
+		return truncateName(lastComment)
 	}
 	return fmt.Sprintf("Query %d", n)
+}
+
+func isComment(line string) bool {
+	return strings.HasPrefix(line, "--") || strings.HasPrefix(line, "/*")
+}
+
+// commentText strips comment markers (-- or /* */) and surrounding noise.
+func commentText(line string) string {
+	if strings.HasPrefix(line, "--") {
+		return strings.TrimSpace(strings.TrimLeft(line, "-"))
+	}
+	t := strings.TrimPrefix(line, "/*")
+	t = strings.TrimSuffix(t, "*/")
+	return strings.TrimSpace(strings.Trim(t, "*"))
+}
+
+// hasSQLContent reports whether a statement has any non-blank, non-comment line.
+func hasSQLContent(stmt string) bool {
+	for _, raw := range strings.Split(stmt, "\n") {
+		line := strings.TrimSpace(raw)
+		if line == "" || isComment(line) {
+			continue
+		}
+		return true
+	}
+	return false
+}
+
+func truncateName(s string) string {
+	s = strings.TrimSpace(s)
+	if r := []rune(s); len(r) > 80 {
+		s = strings.TrimSpace(string(r[:80]))
+	}
+	return s
 }
