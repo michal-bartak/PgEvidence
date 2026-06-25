@@ -6,6 +6,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/kbinani/screenshot v0.0.0-20250624051815-089614a94018
 	github.com/wailsapp/wails/v2 v2.12.0
+	github.com/yeka/zip v0.0.0-20231116150916-03d6312748a9
 )
 
 require (

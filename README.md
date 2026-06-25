@@ -30,6 +30,8 @@ audit-run-20260625-153000/
   manifest.json                  # queries, files, checksums, timings, versions
   manifest.json.sha256           # checksum over manifest.json
   run.mp4                        # only if video recording was enabled
+  audit-run-20260625-153000.zip  # archive of the above (if archiving is enabled)
+  audit-run-20260625-153000.zip.pwd  # generated password (auto mode only)
 ```
 
 Auditors can verify any result independently:
@@ -38,6 +40,24 @@ Auditors can verify any result independently:
 cd audit-run-20260625-153000
 sha256sum -c 0001_active_users.csv.sha256
 ```
+
+## Archiving
+
+When **Create a ZIP archive** is enabled (Settings → Archive), each run is packaged
+into a `.zip` placed inside its run folder (the loose files are kept too). Password
+protection:
+
+- **None** — plain ZIP.
+- **Explicit** — encrypt with the password from Settings; if left blank there, the
+  app prompts for one after the run (cancel to skip archiving).
+- **Auto-generated** — a random password is created and written next to the archive
+  as `<name>.zip.pwd`.
+
+Encryption uses legacy **ZipCrypto** for compatibility — it opens with macOS
+`unzip` (which prompts for the password), Windows Explorer, 7-Zip, etc. Note it is
+cryptographically weak, and passwords are stored in plaintext (the explicit one in
+the config file, the auto one in the `.pwd` sidecar) — this is packaging
+convenience, not strong secrecy.
 
 ## Prerequisites
 

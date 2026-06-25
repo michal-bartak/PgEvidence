@@ -10,6 +10,7 @@ import (
 
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 
+	"audit-extractor/internal/archive"
 	"audit-extractor/internal/capture"
 	"audit-extractor/internal/config"
 	"audit-extractor/internal/manifest"
@@ -240,6 +241,38 @@ func (a *App) SelectOutputDir() (string, error) {
 	return wruntime.OpenDirectoryDialog(a.ctx, wruntime.OpenDialogOptions{
 		Title: "Choose output folder for audit extracts",
 	})
+}
+
+// ArchiveRun zips the run folder into <runDir>/<name>.zip. A non-empty password
+// ZipCrypto-encrypts the entries; empty means an unencrypted archive.
+func (a *App) ArchiveRun(runDir, password string) (archive.Result, error) {
+	zipPath, err := archive.Create(runDir, password)
+	if err != nil {
+		return archive.Result{}, err
+	}
+	mode := "none"
+	if password != "" {
+		mode = "explicit"
+	}
+	return archive.Result{ZipPath: zipPath, Encrypted: password != "", Mode: mode}, nil
+}
+
+// ArchiveRunAuto zips the run folder with a generated password and writes that
+// password to <zip>.pwd next to the archive.
+func (a *App) ArchiveRunAuto(runDir string) (archive.Result, error) {
+	pw, err := archive.GeneratePassword()
+	if err != nil {
+		return archive.Result{}, err
+	}
+	zipPath, err := archive.Create(runDir, pw)
+	if err != nil {
+		return archive.Result{}, err
+	}
+	pwdPath, err := archive.WritePwdFile(zipPath, pw)
+	if err != nil {
+		return archive.Result{}, err
+	}
+	return archive.Result{ZipPath: zipPath, PwdPath: pwdPath, Password: pw, Encrypted: true, Mode: "auto"}, nil
 }
 
 // OpenRunFolder reveals a run directory in the OS file manager.

@@ -3,7 +3,8 @@
   import { cfg, queries, env, activeTab } from '../stores';
   import type { QueryPayload, ResultPayload, DonePayload } from '../stores';
   import { EventsOn } from '../../wailsjs/runtime/runtime';
-  import { StartRun, CancelRun, OpenRunFolder, SaveConfig } from '../../wailsjs/go/main/App';
+  import { StartRun, CancelRun, OpenRunFolder, SaveConfig, ArchiveRun, ArchiveRunAuto } from '../../wailsjs/go/main/App';
+  import type { archive } from '../../wailsjs/go/models';
 
   let running = false;
   let total = 0;
@@ -16,11 +17,21 @@
   let holdTimer: any = null;
   let capturing = false;
 
+  let archiving = false;
+  let archiveResult: archive.Result | null = null;
+  let archiveError = '';
+
+  // password prompt modal (explicit mode with no stored password)
+  let pwModalOpen = false;
+  let pwInput = '';
+  let pwResolver: ((v: string | null) => void) | null = null;
+
   const unsub: Array<() => void> = [];
 
   onMount(() => {
     unsub.push(EventsOn('run:start', (p: any) => {
       running = true; total = p.total; current = null; result = null; logs = []; done = null;
+      archiveResult = null; archiveError = ''; archiving = false;
     }));
     unsub.push(EventsOn('run:query', (p: QueryPayload) => { current = p; result = null; capturing = false; stopHold(); }));
     unsub.push(EventsOn('run:result', (p: ResultPayload) => {
@@ -33,9 +44,41 @@
     unsub.push(EventsOn('run:log', (p: any) => { logs = [...logs, p.message]; }));
     unsub.push(EventsOn('run:done', (p: DonePayload) => {
       running = false; done = p; current = null; capturing = false; stopHold();
-      if (p.error) startError = p.error;
+      if (p.error) { startError = p.error; return; }
+      if (p.runDir && $cfg?.zip) archive(p.runDir);
     }));
   });
+
+  async function archive(runDir: string) {
+    archiving = true; archiveError = ''; archiveResult = null;
+    try {
+      const mode = $cfg?.zipPasswordMode ?? 'none';
+      if (mode === 'auto') {
+        archiveResult = await ArchiveRunAuto(runDir);
+      } else if (mode === 'explicit') {
+        let pw = $cfg?.zipPassword ?? '';
+        if (!pw) {
+          const entered = await askPassword();
+          if (!entered) { logs = [...logs, 'archiving skipped — no password provided']; return; }
+          pw = entered;
+        }
+        archiveResult = await ArchiveRun(runDir, pw);
+      } else {
+        archiveResult = await ArchiveRun(runDir, '');
+      }
+    } catch (e) {
+      archiveError = String(e);
+    } finally {
+      archiving = false;
+    }
+  }
+
+  function askPassword(): Promise<string | null> {
+    pwInput = ''; pwModalOpen = true;
+    return new Promise((res) => { pwResolver = res; });
+  }
+  function pwSubmit() { pwModalOpen = false; const r = pwResolver; pwResolver = null; r && r(pwInput || null); }
+  function pwCancel() { pwModalOpen = false; const r = pwResolver; pwResolver = null; r && r(null); }
 
   onDestroy(() => { unsub.forEach((u) => u && u()); stopHold(); });
 
@@ -154,9 +197,46 @@
         Evidence written to:
       </p>
       <code class="path">{done.runDir}</code>
+
+      {#if $cfg?.zip}
+        <div class="archive">
+          {#if archiving}
+            <span class="muted">Creating ZIP archive…</span>
+          {:else if archiveError}
+            <span class="err">Archiving failed: {archiveError}</span>
+          {:else if archiveResult}
+            <div>ZIP archive: <code class="path">{archiveResult.zipPath}</code></div>
+            {#if archiveResult.mode === 'auto'}
+              <div style="margin-top:6px;">
+                Generated password: <code class="pw">{archiveResult.password}</code>
+                <span class="muted"> — saved to {archiveResult.pwdPath}</span>
+              </div>
+            {:else if archiveResult.encrypted}
+              <div class="muted" style="margin-top:6px;">Encrypted (ZipCrypto) with your password.</div>
+            {/if}
+          {/if}
+        </div>
+      {/if}
+
       <div class="row" style="margin-top:12px;">
         <button class="primary" on:click={openFolder}>Open evidence folder</button>
         <button class="ghost" on:click={() => ($activeTab = 'queries')}>Back to queries</button>
+      </div>
+    </div>
+  {/if}
+
+  {#if pwModalOpen}
+    <div class="overlay">
+      <div class="modal card">
+        <h3>ZIP password</h3>
+        <p class="muted">Enter a password to encrypt the archive, or cancel to skip archiving.</p>
+        <input type="password" bind:value={pwInput} placeholder="password"
+          on:keydown={(e) => e.key === 'Enter' && pwSubmit()} />
+        <div class="row" style="margin-top:12px;">
+          <div class="spacer"></div>
+          <button class="ghost" on:click={pwCancel}>Skip</button>
+          <button class="primary" on:click={pwSubmit} disabled={!pwInput}>Encrypt</button>
+        </div>
       </div>
     </div>
   {/if}
@@ -202,4 +282,9 @@
   .path, code.path { font-family: var(--mono); font-size: 0.85rem; word-break: break-all; color: var(--muted); }
   .log { font-family: var(--mono); font-size: 0.8rem; }
   .logline { color: var(--warn); padding: 2px 0; }
+  .archive { margin-top: 12px; padding: 10px 14px; background: var(--bg-2); border-radius: 8px; font-size: 0.9rem; }
+  .pw { font-family: var(--mono); background: var(--bg-3); padding: 2px 8px; border-radius: 5px; }
+  .overlay { position: fixed; inset: 0; background: #0008; display: flex; align-items: center; justify-content: center; z-index: 20; }
+  .modal { width: 420px; max-width: 90vw; }
+  .modal h3 { margin: 0 0 6px; }
 </style>

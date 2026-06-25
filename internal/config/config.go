@@ -34,6 +34,9 @@ type Config struct {
 	Video                bool         `json:"video"`
 	MonitorIndex         int          `json:"monitorIndex"`
 	StopOnError          bool         `json:"stopOnError"`
+	Zip                  bool         `json:"zip"`
+	ZipPasswordMode      string       `json:"zipPasswordMode"` // "none" | "explicit" | "auto"
+	ZipPassword          string       `json:"zipPassword"`     // explicit mode only; stored plaintext
 }
 
 const appDirName = "audit-extractor"
@@ -86,6 +89,9 @@ func Default() Config {
 		Video:                false,
 		MonitorIndex:         0,
 		StopOnError:          false,
+		Zip:                  true,
+		ZipPasswordMode:      "none",
+		ZipPassword:          "",
 	}
 }
 

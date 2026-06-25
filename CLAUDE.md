@@ -61,6 +61,7 @@ internal/checksum/           SHA-256 + WriteSidecar (coreutils "<hex>  <name>" f
 internal/capture/            capture.go: full-display screenshot (kbinani/screenshot)
                              recorder.go: optional ffmpeg recorder (experimental, per-OS input)
 internal/manifest/           Manifest struct + Write (manifest.json + manifest.json.sha256)
+internal/archive/            ZIP packaging (yeka/zip, ZipCrypto); Create/GeneratePassword/WritePwdFile
 internal/runner/             Orchestrates the run: loop, run:* events, dwell, screenshot, manifest
 frontend/src/App.svelte      Shell: tabs (Queries/Run/Settings), loads env+config+queries on mount
 frontend/src/stores.ts       Svelte stores (cfg, queries, env, activeTab) + event payload types
@@ -90,6 +91,9 @@ flows through a `context.Context` cancelled by `App.CancelRun`.
   persisted via `ReplaceAllQueries` (which renumbers `order` by index).
 - Starting a run first calls `SaveConfig` with the on-screen config, so a run always
   uses what's displayed (avoids the "unsaved Settings edit" divergence).
+- **Archiving is frontend-orchestrated after `run:done`** (not in the runner), so the
+  explicit-password prompt can happen in the UI. `Run.svelte` calls `ArchiveRun`
+  (none/explicit) or `ArchiveRunAuto`; the zip is written **inside** the run folder.
 
 ## Build / dev commands
 
@@ -212,6 +216,14 @@ decision is made or reversed.
 - **Single sources of truth.** `VERSION` (embedded) for the app version;
   `build/appicon.png` (from `scripts/gen_icon.py`) for the cross-platform icon.
 - **Query reorder = drag-and-drop.** Replaced ↑/↓ buttons with native HTML5 DnD.
+- **ZIP archiving, ZipCrypto, zip-inside-folder.** Each run can be packaged into a
+  `.zip` created *inside* its run folder (folder kept). Encryption is legacy
+  ZipCrypto (`yeka/zip` `StandardEncryption`) for compatibility, chosen over AES-256
+  despite being weak. Password modes: none / explicit / auto. Explicit password is
+  persisted plaintext in `config.json` and the auto password in `<zip>.pwd` — a
+  deliberate exception to "no stored password" (which governs DB creds), for
+  packaging convenience. Orchestrated from the frontend so the explicit-password
+  prompt works.
 - **Generate the full icon set ourselves.** Wails' macOS `.icns` lacks `@1x`
   sizes (generic icon in Finder/Dock/cmd-tab) and it never builds the Windows
   `.ico`. `scripts/gen_icon.py` emits `.png` + complete `.icns` + `.ico`; `make

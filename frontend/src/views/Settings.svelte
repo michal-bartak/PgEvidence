@@ -175,6 +175,40 @@
       </div>
     </div>
 
+    <div class="card">
+      <h3>Archive</h3>
+      <label class="toggle"><input type="checkbox" bind:checked={c.zip} /> Create a ZIP archive after each run</label>
+
+      <div style="margin-top:14px;" class:disabled-block={!c.zip}>
+        <label for="zipmode">Password protection</label>
+        <select id="zipmode" bind:value={c.zipPasswordMode} disabled={!c.zip}>
+          <option value="none">None — plain ZIP</option>
+          <option value="explicit">Explicit password</option>
+          <option value="auto">Auto-generated password</option>
+        </select>
+
+        {#if c.zipPasswordMode === 'explicit'}
+          <label for="zippw" style="margin-top:12px;">Explicit ZIP password</label>
+          <input id="zippw" type="password" bind:value={c.zipPassword} disabled={!c.zip}
+            placeholder="leave blank to be prompted at run time" />
+          <div class="muted" style="font-size:0.78rem; margin-top:6px;">
+            Stored in plaintext in config.json. Leave blank and you'll be asked for a
+            password after each run.
+          </div>
+        {:else if c.zipPasswordMode === 'auto'}
+          <div class="muted" style="font-size:0.78rem; margin-top:10px;">
+            A random password is generated per run and saved next to the archive as
+            <span class="mono">&lt;name&gt;.zip.pwd</span>.
+          </div>
+        {/if}
+
+        <div class="muted" style="font-size:0.78rem; margin-top:10px;">
+          ZIP uses legacy ZipCrypto encryption (opens with macOS <span class="mono">unzip</span>,
+          Windows Explorer, 7-Zip) — compatible but cryptographically weak.
+        </div>
+      </div>
+    </div>
+
     <div class="card env">
       <h3>Environment</h3>
       <table>
@@ -208,6 +242,7 @@
   .toggle { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--text); font-size: 0.9rem; }
   .toggle input { width: auto; }
   .toggle.disabled { opacity: 0.55; }
+  .disabled-block { opacity: 0.5; }
   .testmsg { font-size: 0.85rem; }
   .testmsg.ok { color: var(--ok); }
   .testmsg.err { color: var(--err); }

@@ -1,3 +1,28 @@
+export namespace archive {
+	
+	export class Result {
+	    zipPath: string;
+	    pwdPath: string;
+	    password: string;
+	    encrypted: boolean;
+	    mode: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Result(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.zipPath = source["zipPath"];
+	        this.pwdPath = source["pwdPath"];
+	        this.password = source["password"];
+	        this.encrypted = source["encrypted"];
+	        this.mode = source["mode"];
+	    }
+	}
+
+}
+
 export namespace config {
 	
 	export class Connection {
@@ -35,6 +60,9 @@ export namespace config {
 	    video: boolean;
 	    monitorIndex: number;
 	    stopOnError: boolean;
+	    zip: boolean;
+	    zipPasswordMode: string;
+	    zipPassword: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Config(source);
@@ -52,6 +80,9 @@ export namespace config {
 	        this.video = source["video"];
 	        this.monitorIndex = source["monitorIndex"];
 	        this.stopOnError = source["stopOnError"];
+	        this.zip = source["zip"];
+	        this.zipPasswordMode = source["zipPasswordMode"];
+	        this.zipPassword = source["zipPassword"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
