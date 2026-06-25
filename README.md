@@ -80,9 +80,11 @@ removes the loose files once the archive is written, leaving only the `.zip` (an
    connection** to confirm.
 2. **Queries** tab — add/edit/remove queries one by one, **drag the ⠿ handle to
    reorder** them, or **Import all** to paste a JSON query set or a plain `.sql`
-   script (split on semicolons). When importing a script, each query is named after
-   the comment line just before it (e.g. `-- Active users` → "Active users"),
-   falling back to the first SQL line. **Export all** saves your set as JSON.
+   script (split on semicolons). When importing a script, the free text before each
+   query — a plain-text description and/or `--` comment — becomes its name and is
+   excluded from the SQL; the query is taken to start at the first SQL keyword
+   (`SELECT`, `WITH`, …). With no leading text, the name falls back to the first SQL
+   line. **Export all** saves your set as JSON.
 3. **Run** tab — **Start run**. Each query is executed in order; you'll see it on
    screen with its checksum and result preview, and the evidence folder opens when
    done.

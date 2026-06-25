@@ -57,8 +57,9 @@ app.go                       App struct: bound methods + runner.UI (Emit/BringTo
 internal/config/             Config + Connection list; JSON in os.UserConfigDir()/audit-extractor
 internal/store/              Query CRUD: Upsert/Delete/Move/ReplaceAll/Import/Export
                              Import parses JSON set OR splits a SQL script on top-level ';'
-                             (comment-aware); query name = the comment just before it
-                             (deriveName); see store_test.go
+                             (comment-aware); query name = the free text/comment
+                             before it, split at the first SQL keyword (nameAndSQL),
+                             excluded from the stored SQL; see store_test.go
 internal/psql/               Runs system psql (--csv, --no-psqlrc, ON_ERROR_STOP=1) to a file
 internal/checksum/           SHA-256 + WriteSidecar (coreutils "<hex>  <name>" format)
 internal/capture/            capture.go: full-display screenshot (kbinani/screenshot)

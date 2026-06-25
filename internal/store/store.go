@@ -332,45 +332,104 @@ func dollarOpen(s string) string {
 
 // nameAndSQL derives a query's name and its SQL from a raw statement chunk.
 //
-// The name comes from the comment immediately preceding the query (the text just
-// before it); with several leading comment lines the last one (closest to the
-// query) wins. When a leading comment is used as the name, those leading comment
-// (and blank) lines are STRIPPED from the SQL so the name text is never sent to
-// the database. With no leading comment, the name falls back to the first SQL
-// line and the SQL is left intact (the original behaviour).
+// Any free text before the query — a plain-text description and/or comments — is
+// used as the name and EXCLUDED from the SQL. The query is taken to begin at the
+// first line that starts a SQL statement (SELECT, WITH, INSERT, ...). So:
+//
+//	A list of login-enabled users        -> name: "A list of login-enabled users"
+//	SELECT ... FROM pg_roles ...;            sql:  "SELECT ... FROM pg_roles ..."
+//
+// When the chunk starts with SQL (no leading text), the name falls back to the
+// first SQL line. Leading comment markers (-- or /* */) are stripped from names.
 func nameAndSQL(stmt string, n int) (string, string) {
 	lines := strings.Split(stmt, "\n")
-	lastComment := ""
 	sqlStart := -1
 	for i, raw := range lines {
-		line := strings.TrimSpace(raw)
-		if line == "" {
+		if strings.TrimSpace(raw) == "" {
 			continue
 		}
-		if isComment(line) {
-			if t := commentText(line); t != "" {
-				lastComment = t
-			}
+		if isSQLStart(raw) {
+			sqlStart = i
+			break
+		}
+	}
+
+	// No leading text (SQL on the first line), or no recognizable SQL keyword:
+	// keep the whole chunk as SQL and name it from its first line.
+	if sqlStart <= 0 {
+		sql := strings.TrimSpace(stmt)
+		return fallbackName(sql, n), sql
+	}
+
+	name := buildName(lines[:sqlStart])
+	if name == "" {
+		name = fmt.Sprintf("Query %d", n)
+	}
+	sql := strings.TrimSpace(strings.Join(lines[sqlStart:], "\n"))
+	return name, sql
+}
+
+// sqlStartKeywords are statement-initial keywords used to detect where a query
+// begins (so preceding free text can be split off as the name).
+var sqlStartKeywords = map[string]bool{
+	"select": true, "with": true, "insert": true, "update": true, "delete": true,
+	"merge": true, "values": true, "table": true, "create": true, "alter": true,
+	"drop": true, "truncate": true, "comment": true, "grant": true, "revoke": true,
+	"explain": true, "analyze": true, "vacuum": true, "copy": true, "set": true,
+	"show": true, "reset": true, "call": true, "do": true, "begin": true,
+	"commit": true, "rollback": true, "refresh": true, "reindex": true,
+	"cluster": true, "prepare": true, "execute": true, "declare": true,
+	"fetch": true, "lock": true, "listen": true, "notify": true,
+}
+
+// isSQLStart reports whether a line begins a SQL statement (first word is a known
+// statement keyword). Comment lines are never statement starts.
+func isSQLStart(line string) bool {
+	line = strings.TrimSpace(line)
+	if line == "" || isComment(line) {
+		return false
+	}
+	line = strings.TrimLeft(line, "(") // e.g. "(SELECT ..."
+	word := line
+	if i := strings.IndexAny(line, " \t("); i >= 0 {
+		word = line[:i]
+	}
+	word = strings.ToLower(strings.Trim(word, "(),;"))
+	return sqlStartKeywords[word]
+}
+
+// buildName joins the leading description/comment lines into a single name,
+// stripping comment markers.
+func buildName(lines []string) string {
+	var parts []string
+	for _, raw := range lines {
+		t := strings.TrimSpace(raw)
+		if t == "" {
 			continue
 		}
-		sqlStart = i // first real (non-blank, non-comment) line
-		break
-	}
-
-	if sqlStart == -1 { // no SQL line found (shouldn't happen; hasSQLContent guards)
-		if lastComment != "" {
-			return truncateName(lastComment), strings.TrimSpace(stmt)
+		if isComment(t) {
+			t = commentText(t)
 		}
-		return fmt.Sprintf("Query %d", n), strings.TrimSpace(stmt)
+		if t != "" {
+			parts = append(parts, t)
+		}
 	}
+	return truncateName(strings.Join(parts, " "))
+}
 
-	if lastComment != "" {
-		sql := strings.TrimSpace(strings.Join(lines[sqlStart:], "\n"))
-		return truncateName(lastComment), sql
+// fallbackName names a query from its first line (a comment is cleaned) when no
+// leading description is present.
+func fallbackName(sql string, n int) string {
+	fl := firstLine(sql)
+	if isComment(fl) {
+		if t := commentText(fl); t != "" {
+			return truncateName(t)
+		}
 	}
-	// No leading comment: keep the whole statement, name from its first line.
-	sql := strings.TrimSpace(stmt)
-	return truncateName(firstLine(sql)), sql
+	if fl != "" {
+		return truncateName(fl)
+	}
+	return fmt.Sprintf("Query %d", n)
 }
 
 func firstLine(s string) string {
@@ -409,9 +468,9 @@ func hasSQLContent(stmt string) bool {
 }
 
 func truncateName(s string) string {
-	s = strings.TrimSpace(s)
-	if r := []rune(s); len(r) > 80 {
-		s = strings.TrimSpace(string(r[:80]))
+	s = strings.Join(strings.Fields(s), " ") // collapse runs of whitespace
+	if r := []rune(s); len(r) > 120 {
+		s = strings.TrimSpace(string(r[:120]))
 	}
 	return s
 }
