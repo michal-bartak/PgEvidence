@@ -212,9 +212,10 @@ func parseSQLScript(script string) []Query {
 		if stmt == "" || !hasSQLContent(stmt) {
 			continue // skip blank chunks and comment-only trailers
 		}
+		name, sql := nameAndSQL(stmt, len(qs)+1)
 		qs = append(qs, Query{
-			Name:    deriveName(stmt, len(qs)+1),
-			SQL:     stmt,
+			Name:    name,
+			SQL:     sql,
 			Enabled: true,
 		})
 	}
@@ -329,13 +330,19 @@ func dollarOpen(s string) string {
 	return ""
 }
 
-// deriveName names a statement after the comment immediately preceding the query
-// (the text just before it). With several leading comment lines it uses the last
-// one (closest to the query). With no comment it falls back to the first SQL line,
-// then to a numbered default.
-func deriveName(stmt string, n int) string {
+// nameAndSQL derives a query's name and its SQL from a raw statement chunk.
+//
+// The name comes from the comment immediately preceding the query (the text just
+// before it); with several leading comment lines the last one (closest to the
+// query) wins. When a leading comment is used as the name, those leading comment
+// (and blank) lines are STRIPPED from the SQL so the name text is never sent to
+// the database. With no leading comment, the name falls back to the first SQL
+// line and the SQL is left intact (the original behaviour).
+func nameAndSQL(stmt string, n int) (string, string) {
+	lines := strings.Split(stmt, "\n")
 	lastComment := ""
-	for _, raw := range strings.Split(stmt, "\n") {
+	sqlStart := -1
+	for i, raw := range lines {
 		line := strings.TrimSpace(raw)
 		if line == "" {
 			continue
@@ -346,16 +353,33 @@ func deriveName(stmt string, n int) string {
 			}
 			continue
 		}
-		// First real SQL line.
+		sqlStart = i // first real (non-blank, non-comment) line
+		break
+	}
+
+	if sqlStart == -1 { // no SQL line found (shouldn't happen; hasSQLContent guards)
 		if lastComment != "" {
-			return truncateName(lastComment)
+			return truncateName(lastComment), strings.TrimSpace(stmt)
 		}
-		return truncateName(line)
+		return fmt.Sprintf("Query %d", n), strings.TrimSpace(stmt)
 	}
+
 	if lastComment != "" {
-		return truncateName(lastComment)
+		sql := strings.TrimSpace(strings.Join(lines[sqlStart:], "\n"))
+		return truncateName(lastComment), sql
 	}
-	return fmt.Sprintf("Query %d", n)
+	// No leading comment: keep the whole statement, name from its first line.
+	sql := strings.TrimSpace(stmt)
+	return truncateName(firstLine(sql)), sql
+}
+
+func firstLine(s string) string {
+	for _, raw := range strings.Split(s, "\n") {
+		if t := strings.TrimSpace(raw); t != "" {
+			return t
+		}
+	}
+	return s
 }
 
 func isComment(line string) bool {

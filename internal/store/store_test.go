@@ -1,6 +1,9 @@
 package store
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestParseSQLScript_Names(t *testing.T) {
 	script := `
@@ -34,6 +37,16 @@ SELECT 3;
 		if qs[i].Name != w {
 			t.Errorf("query %d name = %q, want %q", i, qs[i].Name, w)
 		}
+	}
+
+	// The leading comment used as the name must be stripped from the SQL.
+	for i, q := range qs {
+		if strings.HasPrefix(q.SQL, "--") || strings.HasPrefix(q.SQL, "/*") {
+			t.Errorf("query %d SQL still starts with a comment: %q", i, q.SQL)
+		}
+	}
+	if qs[0].SQL != "SELECT * FROM users WHERE last_login > now() - interval '30 days'" {
+		t.Errorf("query 0 SQL not clean: %q", qs[0].SQL)
 	}
 }
 
