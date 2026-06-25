@@ -15,6 +15,24 @@ For every query in your set, the app:
 
 Result and checksum (and screenshot) for a query share a common filename stem.
 
+## Install
+
+Download the latest installer from the
+[Releases page](https://github.com/michal-bartak/Audit-PG-Extractor/releases):
+
+- **macOS** — `…-macos-universal.dmg`: open it, drag **Audit Extractor** to
+  Applications. The app is unsigned, so on first launch either download the DMG via
+  `curl -LJO <url>` (no quarantine) or run
+  `xattr -d com.apple.quarantine /Applications/audit-extractor.app`. Then grant
+  Screen Recording permission and reopen.
+- **Windows** — `…-windows-amd64.msi`: run it (SmartScreen → More info → Run anyway).
+- **Linux** — `sudo apt install ./…-linux-amd64.deb` (Debian/Ubuntu) or
+  `sudo dnf install ./…-linux-amd64.rpm` (Fedora/RHEL); the Postgres client is pulled
+  in automatically.
+
+All builds require **`psql`** at runtime (see Prerequisites). Releases are produced
+by the `Release` GitHub Actions workflow (manual dispatch on a `vX.Y.Z` tag).
+
 ## Evidence layout
 
 One run writes a timestamped folder under your chosen output directory:

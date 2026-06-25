@@ -1,0 +1,358 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (v0.1.0 or 0.1.0; must exist on GitHub and match VERSION)"
+        required: true
+      draft:
+        description: "Create as draft release"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.normalize.outputs.tag }}
+    steps:
+      - name: Normalize tag input
+        id: normalize
+        run: |
+          raw="${{ inputs.tag }}"
+          if [[ "$raw" == v* ]]; then tag="$raw"; else tag="v$raw"; fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "Using release tag: $tag"
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ steps.normalize.outputs.tag }}
+      - name: Verify tag matches VERSION file
+        run: |
+          expected="v$(tr -d ' \n\r' < VERSION)"
+          tag="${{ steps.normalize.outputs.tag }}"
+          if [ "$tag" != "$expected" ]; then
+            echo "Tag $tag does not match VERSION file ($expected)"; exit 1
+          fi
+          echo "Tag matches VERSION: $expected"
+
+  build:
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            platform: linux/amd64
+            goos: linux
+          - os: windows-latest
+            platform: windows/amd64
+            goos: windows
+          - os: macos-latest
+            platform: darwin/universal
+            goos: darwin
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.prepare.outputs.tag }}
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      # WebKit 4.1 dev headers (Ubuntu 24.04+); pairs with build:tags in wails.json
+      - name: Install Linux WebView dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            libgtk-3-dev libwebkit2gtk-4.1-dev build-essential pkg-config
+
+      - name: Install WiX Toolset
+        if: runner.os == 'Windows'
+        run: choco install wixtoolset --no-progress -y
+
+      - name: Install Wails CLI
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.12.0
+
+      - name: Sync wails.json version from VERSION file
+        shell: bash
+        run: |
+          version=$(tr -d ' \n\r' < VERSION)
+          jq --arg v "$version" '.info.productVersion = $v' wails.json > wails.json.tmp
+          mv wails.json.tmp wails.json
+          echo "Set wails.json productVersion → $version"
+
+      # build:tags webkit2_41 in wails.json selects webkit2gtk-4.1 at link time
+      - name: Build
+        run: wails build -platform ${{ matrix.platform }} -clean
+
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $output  = (jq -r '.outputfilename' wails.json)
+          $version = (Get-Content VERSION -Raw).Trim()
+
+          # MSI installer via WiX
+          $m = [regex]::Match($version, '^(\d+)(?:\.(\d+))?(?:\.(\d+))?')
+          $wixVersion = "$($m.Groups[1].Value).$($m.Groups[2].Value -replace '^$','0').$($m.Groups[3].Value -replace '^$','0').0"
+          $wix = Get-ChildItem "C:\Program Files (x86)\WiX Toolset*\bin","C:\Program Files\WiX Toolset*\bin" -ErrorAction SilentlyContinue |
+                   Select-Object -First 1 -ExpandProperty FullName
+          if (-not $wix) { throw "WiX Toolset bin directory not found" }
+          $wxs      = "build\windows\installer\product.wxs"
+          $exePath  = "$PWD\build\bin\$output.exe"
+          $iconPath = "$PWD\build\windows\icon.ico"
+          $msi      = "$output-v$version-windows-amd64.msi"
+
+          # Generate UI bitmaps from the app icon
+          Add-Type -AssemblyName System.Drawing
+          $src   = [System.Drawing.Image]::FromFile("$PWD\build\appicon.png")
+          $blue  = [System.Drawing.Color]::FromArgb(255, 47, 111, 208)    # app accent #2f6fd0
+          $gray  = [System.Drawing.Color]::FromArgb(255, 240, 240, 240)   # Windows default dialog bg
+          $sm    = [System.Drawing.Drawing2D.SmoothingMode]::HighQuality
+          $im    = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+
+          # Banner: 493x58 — top strip on every installer page
+          $bmp = New-Object System.Drawing.Bitmap(493, 58)
+          $g   = [System.Drawing.Graphics]::FromImage($bmp)
+          $g.SmoothingMode = $sm; $g.InterpolationMode = $im
+          $g.Clear($blue)
+          $g.DrawImage($src, 493 - 52, 5, 46, 46)
+          $g.Dispose(); $bannerBmp = "$env:TEMP\wix-banner.bmp"
+          $bmp.Save($bannerBmp, [System.Drawing.Imaging.ImageFormat]::Bmp); $bmp.Dispose()
+
+          # Dialog: 493x312 — Welcome/Finish screens
+          # Left 164px: blue panel with icon; right 329px: Windows default gray
+          $bmp = New-Object System.Drawing.Bitmap(493, 312)
+          $g   = [System.Drawing.Graphics]::FromImage($bmp)
+          $g.SmoothingMode = $sm; $g.InterpolationMode = $im
+          $g.Clear($gray)
+          $g.FillRectangle((New-Object System.Drawing.SolidBrush($blue)), 0, 0, 164, 312)
+          $g.DrawImage($src, (164 - 130) / 2, (312 - 130) / 2, 130, 130)
+          $g.Dispose(); $dialogBmp = "$env:TEMP\wix-dialog.bmp"
+          $bmp.Save($dialogBmp, [System.Drawing.Imaging.ImageFormat]::Bmp); $bmp.Dispose()
+          $src.Dispose()
+
+          $licenseRtf = "$PWD\build\windows\installer\License.rtf"
+          & "$wix\candle.exe" -nologo -arch x64 `
+            -dVersion="$wixVersion" `
+            -dExePath="$exePath" `
+            -dIconPath="$iconPath" `
+            -dBannerBmp="$bannerBmp" `
+            -dDialogBmp="$dialogBmp" `
+            -dLicenseRtf="$licenseRtf" `
+            -o product.wixobj $wxs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & "$wix\light.exe" -nologo -spdb -ext WixUIExtension -o $msi product.wixobj
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Fix icon and re-sign (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          app=$(find build/bin -maxdepth 1 -name "*.app" -type d | head -1)
+          [ -n "$app" ] || { echo "ERROR: no .app bundle found"; exit 1; }
+          # The .icns Wails generates omits @1x sizes (generic icon). Replace it with
+          # our complete, committed icns so Finder/Dock/cmd-tab show the real icon.
+          cp build/appicon.icns "$app/Contents/Resources/iconfile.icns"
+          # Re-sign outer bundle only (no --deep, which strips the nested binary's sig)
+          codesign --force --sign - "$app"
+
+      - name: Package (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          output=$(jq -r '.outputfilename' wails.json)
+          version=$(tr -d ' \n\r' < VERSION)
+          app=$(find build/bin -maxdepth 1 -name "*.app" -type d | head -1)
+          [ -n "$app" ] || { echo "ERROR: no .app bundle found in build/bin"; exit 1; }
+          appname="$(basename "$app")"
+
+          rm -f "$output"-v*-macos-universal.dmg
+
+          # 1. Background image: app-blue panel with a light arrow toward Applications
+          pip3 install --quiet --break-system-packages Pillow
+          printf '%s\n' \
+            'from PIL import Image, ImageDraw' \
+            'W, H = 540, 440' \
+            'img = Image.new("RGBA", (W, H), (47, 111, 208, 255))' \
+            'draw = ImageDraw.Draw(img)' \
+            'TRI_W, TRI_H, TRI_GAP, TRI_N = 15, 17, 8, 5' \
+            'arrow_color = (255, 255, 255, 220)' \
+            'start_x = 270 - (TRI_N * TRI_W + (TRI_N-1) * TRI_GAP) / 2' \
+            'cy = 185' \
+            '[draw.polygon([(start_x+i*(TRI_W+TRI_GAP), cy-TRI_H/2), (start_x+i*(TRI_W+TRI_GAP)+TRI_W, cy), (start_x+i*(TRI_W+TRI_GAP), cy+TRI_H/2)], fill=arrow_color) for i in range(TRI_N)]' \
+            'img.convert("RGB").save("/tmp/dmg-background.png")' \
+            > /tmp/gen_bg.py
+          python3 /tmp/gen_bg.py
+
+          # 2. Stage: app bundle + Applications symlink + hidden background folder
+          staging=$(mktemp -d)
+          cp -r "$app" "$staging/"
+          ln -s /Applications "$staging/Applications"
+          mkdir "$staging/.background"
+          cp /tmp/dmg-background.png "$staging/.background/background.png"
+
+          # 3. Create writable DMG
+          hdiutil create -volname "Audit Extractor" -srcfolder "$staging" \
+            -ov -format UDRW -size 200m /tmp/ae-rw.dmg
+
+          # 4. Mount
+          hdiutil attach -readwrite -noverify /tmp/ae-rw.dmg | tee /tmp/hdiutil-attach.txt
+          device=$(grep "^/dev/disk" /tmp/hdiutil-attach.txt | head -1 | awk '{print $1}')
+          echo "Mounted as: $device"
+          [ -n "$device" ] || { echo "ERROR: could not determine device"; exit 1; }
+          sleep 3
+
+          # 5. Window layout via Finder AppleScript
+          osascript \
+            -e 'tell application "Finder"' \
+            -e '  tell disk "Audit Extractor"' \
+            -e '    open' \
+            -e '    set current view of container window to icon view' \
+            -e '    set toolbar visible of container window to false' \
+            -e '    set statusbar visible of container window to false' \
+            -e '    set bounds of container window to {200, 100, 740, 540}' \
+            -e '    set theViewOptions to icon view options of container window' \
+            -e '    set arrangement of theViewOptions to not arranged' \
+            -e '    set icon size of theViewOptions to 128' \
+            -e '    set background picture of theViewOptions to file ".background:background.png"' \
+            -e "    set position of item \"$appname\" of container window to {135, 185}" \
+            -e '    set position of item "Applications" of container window to {405, 185}' \
+            -e '    close' \
+            -e '    open' \
+            -e '    update without registering applications' \
+            -e '    delay 3' \
+            -e '    close' \
+            -e '  end tell' \
+            -e 'end tell'
+
+          # 6. Unmount (sync first so Finder flushes; -force overrides EBUSY)
+          sync
+          hdiutil detach "$device" -force
+
+          # 7. Convert to compressed read-only DMG
+          hdiutil convert /tmp/ae-rw.dmg -format UDZO -imagekey zlib-level=9 \
+            -o "$output-v$version-macos-universal.dmg"
+
+      - name: Package (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          output=$(jq -r '.outputfilename' wails.json)
+          version=$(tr -d ' \n\r' < VERSION)
+          binary="build/bin/$output"
+          pkgname="audit-extractor"
+          description="Reproducible, checksummed PostgreSQL audit extracts"
+          url="https://github.com/michal-bartak/Audit-PG-Extractor"
+          maintainer="Michal Bartak <michal.bartak@betsys.com>"
+
+          # Install packaging tools
+          sudo apt-get install -y --no-install-recommends rpm ruby-dev
+          sudo gem install --no-document fpm
+
+          # .desktop — force the X11 backend so WebKit and the X11 screenshot path
+          # work under Wayland/XWayland.
+          printf '%s\n' \
+            '[Desktop Entry]' \
+            'Type=Application' \
+            'Name=Audit Extractor' \
+            'Comment=Reproducible, checksummed PostgreSQL audit extracts' \
+            'Exec=env GDK_BACKEND=x11 /usr/bin/audit-extractor' \
+            'Icon=audit-extractor' \
+            'Categories=Utility;Database;' \
+            > /tmp/audit-extractor.desktop
+
+          cp build/appicon.png /tmp/audit-extractor.png
+
+          # .deb — runtime deps must match the WebKit linked at build time; psql for extracts
+          fpm -s dir -t deb \
+            -n "$pkgname" -v "$version" \
+            --description "$description" \
+            --url "$url" \
+            --maintainer "$maintainer" \
+            --license "MIT" \
+            --depends libgtk-3-0 \
+            --depends libwebkit2gtk-4.1-0 \
+            --depends postgresql-client \
+            --depends xdg-utils \
+            --architecture amd64 \
+            --package "$output-v$version-linux-amd64.deb" \
+            "$binary=/usr/bin/$output" \
+            /tmp/audit-extractor.desktop=/usr/share/applications/audit-extractor.desktop \
+            /tmp/audit-extractor.png=/usr/share/icons/hicolor/256x256/apps/audit-extractor.png
+
+          # .rpm
+          fpm -s dir -t rpm \
+            -n "$pkgname" -v "$version" \
+            --description "$description" \
+            --url "$url" \
+            --maintainer "$maintainer" \
+            --license "MIT" \
+            --depends gtk3 \
+            --depends webkit2gtk4.1 \
+            --depends postgresql \
+            --depends xdg-utils \
+            --architecture x86_64 \
+            --package "$output-v$version-linux-amd64.rpm" \
+            "$binary=/usr/bin/$output" \
+            /tmp/audit-extractor.desktop=/usr/share/applications/audit-extractor.desktop \
+            /tmp/audit-extractor.png=/usr/share/icons/hicolor/256x256/apps/audit-extractor.png
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist-${{ matrix.goos }}
+          path: "audit-extractor-v*"
+          if-no-files-found: error
+
+  release:
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: dist-*
+          merge-multiple: true
+          path: dist
+      - uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ needs.prepare.outputs.tag }}
+          draft: ${{ inputs.draft }}
+          generate_release_notes: true
+          body: |
+            Audit Extractor runs your SQL set against PostgreSQL and produces
+            tamper-evident evidence (CSV + SHA-256 + full-screen screenshot + manifest).
+
+            **Requires `psql`** (PostgreSQL client) on the machine running the app:
+            - Linux packages depend on it (auto-installed).
+            - macOS/Windows: install it (Homebrew / Postgres.app / EDB installer); the
+              app also auto-discovers psql in common install locations.
+
+            ### Installing
+
+            - **macOS:** Open the `.dmg`, drag **Audit Extractor** to Applications, then eject. The app is unsigned, so Gatekeeper blocks it on first launch:
+              - **Recommended — download with curl** (no quarantine flag is set):
+                ```
+                curl -LJO https://github.com/michal-bartak/Audit-PG-Extractor/releases/download/${{ needs.prepare.outputs.tag }}/audit-extractor-${{ needs.prepare.outputs.tag }}-macos-universal.dmg
+                ```
+              - **Already downloaded via browser** — run once after dragging to Applications:
+                ```
+                xattr -d com.apple.quarantine /Applications/audit-extractor.app
+                ```
+              Then grant Screen Recording permission (System Settings → Privacy & Security) for the proof-of-time screenshots, and reopen the app.
+            - **Windows:** Run the `.msi`. SmartScreen may warn; choose **More info → Run anyway**.
+            - **Linux (Debian/Ubuntu):** `sudo apt install ./audit-extractor-${{ needs.prepare.outputs.tag }}-linux-amd64.deb`
+            - **Linux (Fedora/RHEL):** `sudo dnf install ./audit-extractor-${{ needs.prepare.outputs.tag }}-linux-amd64.rpm`
+          files: dist/*

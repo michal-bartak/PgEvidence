@@ -2,10 +2,17 @@
   "$schema": "https://wails.io/schemas/config.v2.json",
   "name": "audit-extractor",
   "outputfilename": "audit-extractor",
+  "build:tags": "webkit2_41",
   "frontend:install": "npm install",
   "frontend:build": "npm run build",
   "frontend:dev:watcher": "npm run dev",
   "frontend:dev:serverUrl": "auto",
+  "info": {
+    "productName": "Audit Extractor",
+    "productVersion": "0.1.0",
+    "copyright": "© Michal Bartak",
+    "comments": "Reproducible, checksummed PostgreSQL audit extracts"
+  },
   "author": {
     "name": "Michal Bartak",
     "email": "michal.bartak@betsys.com"

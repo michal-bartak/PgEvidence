@@ -118,6 +118,25 @@ make reset-screen-perm    # tccutil reset ScreenCapture (clear stale TCC grant)
 
 Bump the app version by editing the repo-root `VERSION` file (embedded at build).
 
+## Release / packaging
+
+`.github/workflows/release.yml` (manual `workflow_dispatch`) builds installers for
+all three platforms on a `vX.Y.Z` tag (3-OS matrix), modelled on the `osc` project:
+- **macOS:** `darwin/universal` → drag-to-Applications **DMG** (Pillow background +
+  Finder AppleScript layout). The committed `build/appicon.icns` is copied into the
+  bundle, then ad-hoc re-signed (`codesign --force --sign -`, **no `--deep`**).
+- **Windows:** **WiX MSI** (`build/windows/installer/product.wxs`, fresh UpgradeCode);
+  banner/dialog BMPs generated from `build/appicon.png` via System.Drawing.
+- **Linux:** **deb + rpm** via `fpm`; runtime deps `libgtk-3-0`/`gtk3`,
+  `libwebkit2gtk-4.1-0`/`webkit2gtk4.1`, plus **`postgresql-client`/`postgresql`**
+  (hard psql dep) and `xdg-utils`. The `.desktop` runs with `GDK_BACKEND=x11` so
+  WebKit and the X11 screenshot path work under Wayland/XWayland.
+
+Gotchas: the tag must equal `v$(cat VERSION)` (the `prepare` job enforces it) and
+`wails.json` `info.productVersion` is jq-synced from `VERSION` at build. Linux build
+needs `build:tags: webkit2_41` (in `wails.json`) + `libwebkit2gtk-4.1-dev`. Ships
+unsigned (Gatekeeper/SmartScreen documented in the release notes).
+
 **macOS signing (why `make dist`, not `wails build`):** `wails build` ad-hoc
 signs, and an ad-hoc signature's hash changes every build, so the Screen
 Recording (TCC) grant does NOT persist across rebuilds. Signing with a stable
@@ -241,5 +260,9 @@ decision is made or reversed.
   dist` swaps the complete `.icns` into the bundle, re-signs, and re-registers
   with Launch Services. (Same issue was hit and fixed in the `osc` project.)
 
+- **Release pipeline mirrors `osc`.** CI builds DMG (macOS), WiX MSI (Windows),
+  deb+rpm (Linux via fpm) on a `vX.Y.Z` tag. WiX MSI chosen over NSIS; Linux packages
+  hard-depend on the Postgres client (the app needs `psql`). Ships unsigned. Fresh MSI
+  UpgradeCode GUID (never reuse osc's). See the Release / packaging section above.
 - Plans of record: `~/.claude/plans/resilient-toasting-lighthouse.md` (build),
   `~/.claude/plans/1-store-your-memory-woolly-star.md` (polish pass).

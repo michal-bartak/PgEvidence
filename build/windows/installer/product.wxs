@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product Id="*"
+           Name="Audit Extractor"
+           Language="1033"
+           Version="$(var.Version)"
+           Manufacturer="Michal Bartak"
+           UpgradeCode="{14E72F94-B85F-4D5C-B529-41F1BC414CD4}">
+
+    <Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine" />
+    <MajorUpgrade DowngradeErrorMessage="A newer version of Audit Extractor is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <!-- Pre-populate install dir from previous installation so upgrades land in the same place -->
+    <Property Id="INSTALLFOLDER">
+      <RegistrySearch Id="PreviousInstallPath"
+                      Root="HKLM"
+                      Key="Software\MichalBartak\AuditPGExtractor"
+                      Name="InstallPath"
+                      Type="raw"
+                      Win64="yes" />
+    </Property>
+
+    <Icon Id="AppIcon" SourceFile="$(var.IconPath)" />
+    <Property Id="ARPPRODUCTICON" Value="AppIcon" />
+    <Property Id="ARPHELPLINK" Value="https://github.com/michal-bartak/Audit-PG-Extractor" />
+
+    <!-- ── UI ──────────────────────────────────────────────── -->
+    <!-- Point to INSTALLFOLDER so the PathEdit shows the full default path -->
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
+    <WixVariable Id="WixUIBannerBmp"   Value="$(var.BannerBmp)" />
+    <WixVariable Id="WixUIDialogBmp"   Value="$(var.DialogBmp)" />
+    <WixVariable Id="WixUILicenseRtf"  Value="$(var.LicenseRtf)" />
+
+    <UIRef Id="WixUI_InstallDir" />
+
+    <!-- ── Layout ─────────────────────────────────────────── -->
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFiles64Folder">
+        <Directory Id="INSTALLFOLDER" Name="Audit Extractor" />
+      </Directory>
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="AppMenuFolder" Name="Audit Extractor" />
+      </Directory>
+    </Directory>
+
+    <ComponentGroup Id="MainFiles" Directory="INSTALLFOLDER">
+      <Component Id="MainExe" Guid="*">
+        <File Id="AuditExtractorExe" Source="$(var.ExePath)" KeyPath="yes" />
+      </Component>
+      <Component Id="InstallPathRegistry" Guid="*">
+        <RegistryValue Root="HKLM"
+                       Key="Software\MichalBartak\AuditPGExtractor"
+                       Name="InstallPath"
+                       Type="string"
+                       Value="[INSTALLFOLDER]"
+                       KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <DirectoryRef Id="AppMenuFolder">
+      <Component Id="StartMenuShortcut" Guid="*">
+        <Shortcut Id="AppShortcut"
+                  Name="Audit Extractor"
+                  Description="Reproducible, checksummed PostgreSQL audit extracts"
+                  Target="[INSTALLFOLDER]audit-extractor.exe"
+                  WorkingDirectory="INSTALLFOLDER"
+                  Icon="AppIcon" />
+        <RemoveFolder Id="RemoveAppMenuFolder" On="uninstall" />
+        <RegistryValue Root="HKCU" Key="Software\MichalBartak\AuditPGExtractor"
+                       Name="installed" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <Feature Id="MainFeature" Level="1">
+      <ComponentGroupRef Id="MainFiles" />
+      <ComponentRef Id="StartMenuShortcut" />
+    </Feature>
+
+  </Product>
+
+</Wix>
