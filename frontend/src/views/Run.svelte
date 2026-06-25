@@ -257,14 +257,14 @@
 </div>
 
 <style>
-  .wrap { height: 100%; padding: 16px; display: flex; flex-direction: column; gap: 14px; overflow: auto; }
+  .wrap { height: 100%; padding: 16px; display: flex; flex-direction: column; gap: 14px; overflow: hidden; }
   .bar { display: flex; align-items: center; gap: 10px; }
   .ctx { display: flex; gap: 6px; flex-wrap: wrap; }
   .chip { background: var(--bg-3); border: 1px solid var(--border-strong); border-radius: 20px; padding: 3px 11px; font-size: 0.78rem; }
   .chip.ro { border-color: #3a5a3a; color: var(--ok); }
   .progress { font-size: 0.9rem; color: var(--muted); }
   .placeholder { padding: 32px; text-align: center; color: var(--muted); line-height: 1.6; }
-  .stage { display: flex; flex-direction: column; gap: 14px; }
+  .stage { display: flex; flex-direction: column; gap: 14px; flex: 1 1 auto; min-height: 0; }
   .qhead { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
   .qidx { color: var(--accent); font-weight: 700; }
   .qname { font-size: 1.25rem; font-weight: 700; }
@@ -278,8 +278,9 @@
   .checksum .lbl { color: var(--accent); font-weight: 700; font-size: 0.85rem; }
   .checksum code { font-family: var(--mono); font-size: 0.95rem; word-break: break-all; }
   .checksum .file { color: var(--muted); font-family: var(--mono); font-size: 0.85rem; margin-left: auto; }
+  .preview { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
   .prevhead { font-size: 0.85rem; color: var(--muted); margin-bottom: 6px; }
-  .tablewrap { border: 1px solid var(--border-strong); border-radius: 8px; max-height: 320px; }
+  .tablewrap { border: 1px solid var(--border-strong); border-radius: 8px; flex: 1 1 auto; min-height: 0; }
   table { border-collapse: collapse; width: 100%; font-size: 0.85rem; }
   th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--border-strong); white-space: nowrap; max-width: 320px; overflow: hidden; text-overflow: ellipsis; }
   thead th { position: sticky; top: 0; background: var(--bg-3); color: var(--text); }
@@ -287,7 +288,7 @@
   .running-msg { padding: 20px 0; }
   .summary h3 { margin: 0 0 8px; }
   .path, code.path { font-family: var(--mono); font-size: 0.85rem; word-break: break-all; color: var(--muted); }
-  .log { font-family: var(--mono); font-size: 0.8rem; }
+  .log { font-family: var(--mono); font-size: 0.8rem; max-height: 140px; overflow: auto; flex: 0 0 auto; }
   .logline { color: var(--warn); padding: 2px 0; }
   .archive { margin-top: 12px; padding: 10px 14px; background: var(--bg-2); border-radius: 8px; font-size: 0.9rem; }
   .pw { font-family: var(--mono); background: var(--bg-3); padding: 2px 8px; border-radius: 5px; }
