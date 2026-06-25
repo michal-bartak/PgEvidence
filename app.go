@@ -1,0 +1,280 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"os/exec"
+	"runtime"
+	"sync"
+	"time"
+
+	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
+
+	"audit-extractor/internal/capture"
+	"audit-extractor/internal/config"
+	"audit-extractor/internal/manifest"
+	"audit-extractor/internal/psql"
+	"audit-extractor/internal/runner"
+	"audit-extractor/internal/store"
+)
+
+// App is the Wails-bound application object. Its exported methods are callable
+// from the frontend; it also implements runner.UI.
+type App struct {
+	ctx       context.Context
+	mu        sync.Mutex
+	passwords map[string]string // session passwords, in memory only, keyed by connection ID
+	running   bool
+	cancel    context.CancelFunc
+}
+
+// NewApp creates a new App application struct.
+func NewApp() *App {
+	return &App{passwords: map[string]string{}}
+}
+
+func (a *App) startup(ctx context.Context) {
+	a.ctx = ctx
+}
+
+// --- runner.UI implementation -------------------------------------------------
+
+// Emit forwards an event to the frontend.
+func (a *App) Emit(event string, data interface{}) {
+	wruntime.EventsEmit(a.ctx, event, data)
+}
+
+// BringToFront makes the window visible so it appears in screenshots.
+func (a *App) BringToFront() {
+	wruntime.WindowShow(a.ctx)
+	wruntime.WindowUnminimise(a.ctx)
+}
+
+// --- configuration ------------------------------------------------------------
+
+func (a *App) GetConfig() (config.Config, error) { return config.Load() }
+
+func (a *App) SaveConfig(cfg config.Config) error { return config.Save(cfg) }
+
+// --- query management ---------------------------------------------------------
+
+func (a *App) ListQueries() ([]store.Query, error)              { return store.List() }
+func (a *App) SaveQuery(q store.Query) ([]store.Query, error)   { return store.Upsert(q) }
+func (a *App) DeleteQuery(id string) ([]store.Query, error)     { return store.Delete(id) }
+func (a *App) MoveQuery(id string, d int) ([]store.Query, error) { return store.Move(id, d) }
+func (a *App) ReplaceAllQueries(q []store.Query) ([]store.Query, error) {
+	return store.ReplaceAll(q)
+}
+func (a *App) ImportQueries(text string) ([]store.Query, error) { return store.Import(text) }
+func (a *App) ExportQueries() (string, error)                   { return store.Export() }
+
+// --- session credentials (in memory only) -------------------------------------
+
+func (a *App) SetSessionPassword(connID, pw string) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if pw == "" {
+		delete(a.passwords, connID)
+		return
+	}
+	a.passwords[connID] = pw
+}
+
+func (a *App) HasSessionPassword(connID string) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	_, ok := a.passwords[connID]
+	return ok
+}
+
+func (a *App) ClearSessionPasswords() {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.passwords = map[string]string{}
+}
+
+func (a *App) password(connID string) string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.passwords[connID]
+}
+
+// --- environment / diagnostics ------------------------------------------------
+
+// EnvInfo describes the host environment relevant to a run.
+type EnvInfo struct {
+	PSQLFound   bool   `json:"psqlFound"`
+	PSQLPath    string `json:"psqlPath"`
+	PSQLVersion string `json:"psqlVersion"`
+	FFmpegFound  bool   `json:"ffmpegFound"`
+	NumDisplays  int    `json:"numDisplays"`
+	ConfigDir    string `json:"configDir"`
+	ScreenAccess bool   `json:"screenAccess"`
+	AppVersion   string `json:"appVersion"`
+}
+
+func (a *App) DetectEnvironment() EnvInfo {
+	info := EnvInfo{
+		FFmpegFound:  capture.FFmpegAvailable(),
+		NumDisplays:  capture.NumDisplays(),
+		ScreenAccess: capture.HasScreenAccess(),
+		AppVersion:   AppVersion,
+	}
+	if path, ver, err := psql.Detect(); err == nil {
+		info.PSQLFound = true
+		info.PSQLPath = path
+		info.PSQLVersion = ver
+	}
+	if dir, err := config.AppDir(); err == nil {
+		info.ConfigDir = dir
+	}
+	return info
+}
+
+// RequestScreenAccess prompts for macOS Screen Recording permission and returns
+// whether it is granted. The app usually needs a restart after granting.
+func (a *App) RequestScreenAccess() bool {
+	return capture.RequestScreenAccess()
+}
+
+// TestConnection runs `SELECT 1` against the given connection.
+func (a *App) TestConnection(connID string) error {
+	cfg, err := config.Load()
+	if err != nil {
+		return err
+	}
+	c, ok := cfg.FindConnection(connID)
+	if !ok {
+		return fmt.Errorf("connection %q not found", connID)
+	}
+	ctx, cancel := context.WithTimeout(a.ctx, 15*time.Second)
+	defer cancel()
+	return psql.Test(ctx, toPsqlConn(c), a.password(connID))
+}
+
+// --- run control --------------------------------------------------------------
+
+func (a *App) IsRunning() bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.running
+}
+
+// StartRun kicks off the run on a background goroutine and returns immediately.
+// Progress is delivered through run:* events.
+func (a *App) StartRun() error {
+	a.mu.Lock()
+	if a.running {
+		a.mu.Unlock()
+		return fmt.Errorf("a run is already in progress")
+	}
+	a.mu.Unlock()
+
+	cfg, err := config.Load()
+	if err != nil {
+		return err
+	}
+	c, ok := cfg.FindConnection(cfg.SelectedConnectionID)
+	if !ok {
+		return fmt.Errorf("no connection selected")
+	}
+	all, err := store.List()
+	if err != nil {
+		return err
+	}
+	var enabled []store.Query
+	for _, q := range all {
+		if q.Enabled {
+			enabled = append(enabled, q)
+		}
+	}
+	if len(enabled) == 0 {
+		return fmt.Errorf("no enabled queries to run")
+	}
+	_, psqlVer, derr := psql.Detect()
+	if derr != nil {
+		return derr
+	}
+
+	ctx, cancel := context.WithCancel(a.ctx)
+	a.mu.Lock()
+	a.running = true
+	a.cancel = cancel
+	a.mu.Unlock()
+
+	params := runner.Params{
+		Cfg:         cfg,
+		Conn:        toPsqlConn(c),
+		ConnInfo:    toConnInfo(c),
+		Password:    a.password(c.ID),
+		Queries:     enabled,
+		PSQLVersion: psqlVer,
+		AppVersion:  AppVersion,
+	}
+
+	go func() {
+		defer func() {
+			a.mu.Lock()
+			a.running = false
+			a.cancel = nil
+			a.mu.Unlock()
+		}()
+		if _, err := runner.Run(ctx, a, params); err != nil {
+			a.Emit(runner.EventDone, map[string]interface{}{"error": err.Error()})
+		}
+	}()
+	return nil
+}
+
+// CancelRun requests cancellation of the active run.
+func (a *App) CancelRun() {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.cancel != nil {
+		a.cancel()
+	}
+}
+
+// SelectOutputDir opens a native folder picker and returns the chosen path.
+func (a *App) SelectOutputDir() (string, error) {
+	return wruntime.OpenDirectoryDialog(a.ctx, wruntime.OpenDialogOptions{
+		Title: "Choose output folder for audit extracts",
+	})
+}
+
+// OpenRunFolder reveals a run directory in the OS file manager.
+func (a *App) OpenRunFolder(path string) error {
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "darwin":
+		cmd = exec.Command("open", path)
+	case "windows":
+		cmd = exec.Command("explorer", path)
+	default:
+		cmd = exec.Command("xdg-open", path)
+	}
+	return cmd.Start()
+}
+
+// --- helpers ------------------------------------------------------------------
+
+func toPsqlConn(c config.Connection) psql.Conn {
+	return psql.Conn{
+		Host:    c.Host,
+		Port:    c.Port,
+		DBName:  c.DBName,
+		User:    c.User,
+		SSLMode: c.SSLMode,
+	}
+}
+
+func toConnInfo(c config.Connection) manifest.ConnInfo {
+	return manifest.ConnInfo{
+		Name:    c.Name,
+		Host:    c.Host,
+		Port:    c.Port,
+		DBName:  c.DBName,
+		User:    c.User,
+		SSLMode: c.SSLMode,
+	}
+}
