@@ -39,9 +39,10 @@ runs reproducible and self-evidencing. Files for one run live in
   checksummed file, including `manifest.json.sha256` (no special `run.sha256`).
 - **Version has one source:** the repo-root `VERSION` file, embedded into `main.go`
   (`//go:embed VERSION` → `AppVersion`), recorded in the manifest and shown in the UI.
-- **App icon has one source:** `build/appicon.png`, generated from
-  `scripts/gen_icon.py` (mirrors `build/appicon.svg`). Wails derives all platform
-  icons from it at build time.
+- **App icon has one source drawing:** `scripts/gen_icon.py` (mirrors
+  `build/appicon.svg`) emits `build/appicon.png`, a complete `build/appicon.icns`,
+  and `build/windows/icon.ico`. See the icon gotcha below — Wails' own icon
+  generation is insufficient on macOS and absent for Windows.
 
 ## Architecture / package map
 
@@ -146,6 +147,17 @@ Module path is `audit-extractor`; internal packages import as `audit-extractor/i
   same. All psql calls go through the resolved absolute path.
 - `psql` must be installed (PATH or a common location). `ffmpeg` only if video is enabled.
 - Single-monitor capture by default (`config.MonitorIndex`, default 0).
+- **App icon (cross-project gotcha, confirmed in the `osc` project too):**
+  - macOS: the `.icns` Wails generates **omits the `@1x` sizes**, so Finder/Dock/
+    cmd-tab fall back to a generic icon. Fix: generate a complete `.icns`
+    (`make icon`) and copy it over `Contents/Resources/iconfile.icns`, then re-sign
+    — `make dist` does this via the `fix-icon` step (and re-signs *after* the copy,
+    or the signature wouldn't cover the new icns).
+  - Windows: Wails **never** regenerates `build/windows/icon.ico` from
+    `appicon.png`; the `.exe` icon comes from that `.ico`. `make icon` rebuilds it.
+  - macOS caches icons hard: after a rebuild run `lsregister -f <app>` + `touch`
+    (both in `make dist`); a running app must be **quit and reopened** for cmd-tab/
+    Dock to pick up the new icon.
 
 ## Verification
 
@@ -200,6 +212,11 @@ decision is made or reversed.
 - **Single sources of truth.** `VERSION` (embedded) for the app version;
   `build/appicon.png` (from `scripts/gen_icon.py`) for the cross-platform icon.
 - **Query reorder = drag-and-drop.** Replaced ↑/↓ buttons with native HTML5 DnD.
+- **Generate the full icon set ourselves.** Wails' macOS `.icns` lacks `@1x`
+  sizes (generic icon in Finder/Dock/cmd-tab) and it never builds the Windows
+  `.ico`. `scripts/gen_icon.py` emits `.png` + complete `.icns` + `.ico`; `make
+  dist` swaps the complete `.icns` into the bundle, re-signs, and re-registers
+  with Launch Services. (Same issue was hit and fixed in the `osc` project.)
 
 - Plans of record: `~/.claude/plans/resilient-toasting-lighthouse.md` (build),
   `~/.claude/plans/1-store-your-memory-woolly-star.md` (polish pass).
