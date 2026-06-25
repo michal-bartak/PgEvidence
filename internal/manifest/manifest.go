@@ -27,6 +27,7 @@ type QueryRecord struct {
 	Index          int    `json:"index"`
 	Name           string `json:"name"`
 	SQL            string `json:"sql"`
+	SQLFile        string `json:"sqlFile,omitempty"`
 	ResultFile     string `json:"resultFile"`
 	ChecksumFile   string `json:"checksumFile"`
 	ScreenshotFile string `json:"screenshotFile,omitempty"`

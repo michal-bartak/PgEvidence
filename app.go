@@ -275,6 +275,12 @@ func (a *App) ArchiveRunAuto(runDir string) (archive.Result, error) {
 	return archive.Result{ZipPath: zipPath, PwdPath: pwdPath, Password: pw, Encrypted: true, Mode: "auto"}, nil
 }
 
+// PruneRunDir deletes the loose source files in a run folder, keeping only the
+// ZIP archive (and its .pwd). Safe: it refuses if the archive is missing/empty.
+func (a *App) PruneRunDir(runDir string) error {
+	return archive.PruneSources(runDir)
+}
+
 // OpenRunFolder reveals a run directory in the OS file manager.
 func (a *App) OpenRunFolder(path string) error {
 	var cmd *exec.Cmd

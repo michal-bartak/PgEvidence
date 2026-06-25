@@ -11,6 +11,7 @@ maintained set of SQL queries against PostgreSQL one-by-one and produces
 **tamper-evident audit evidence** for each query:
 
 - a CSV result file (`NNNN_<slug>.csv`) via the system `psql --csv`,
+- optionally the query text itself (`NNNN_<slug>.sql`, no checksum; `SaveQuerySQL`),
 - a sha256sum-compatible checksum sidecar (`NNNN_<slug>.csv.sha256`),
 - a **full-desktop screenshot** (`NNNN_<slug>.png`) taken after a configurable
   dwell time, so the OS clock is captured in-frame as proof-of-time,
@@ -94,6 +95,8 @@ flows through a `context.Context` cancelled by `App.CancelRun`.
 - **Archiving is frontend-orchestrated after `run:done`** (not in the runner), so the
   explicit-password prompt can happen in the UI. `Run.svelte` calls `ArchiveRun`
   (none/explicit) or `ArchiveRunAuto`; the zip is written **inside** the run folder.
+  When `DeleteSourcesAfterZip` is set, the UI then calls `PruneRunDir` (which
+  refuses to delete unless the archive exists and is non-empty), leaving only the zip.
 
 ## Build / dev commands
 
@@ -224,6 +227,11 @@ decision is made or reversed.
   deliberate exception to "no stored password" (which governs DB creds), for
   packaging convenience. Orchestrated from the frontend so the explicit-password
   prompt works.
+- **Optional per-query `.sql` + prune-after-zip.** `SaveQuerySQL` (default on)
+  writes `NNNN_<slug>.sql` next to each result — the query text, **no checksum**
+  (it's reproducible input, not tamper-evidence). `DeleteSourcesAfterZip` (default
+  off) removes the loose files after a confirmed archive, keeping only the zip;
+  `archive.PruneSources` guards against deleting when the zip is missing/empty.
 - **Generate the full icon set ourselves.** Wails' macOS `.icns` lacks `@1x`
   sizes (generic icon in Finder/Dock/cmd-tab) and it never builds the Windows
   `.ico`. `scripts/gen_icon.py` emits `.png` + complete `.icns` + `.ico`; `make

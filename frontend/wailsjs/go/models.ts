@@ -60,9 +60,11 @@ export namespace config {
 	    video: boolean;
 	    monitorIndex: number;
 	    stopOnError: boolean;
+	    saveQuerySQL: boolean;
 	    zip: boolean;
 	    zipPasswordMode: string;
 	    zipPassword: string;
+	    deleteSourcesAfterZip: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new Config(source);
@@ -80,9 +82,11 @@ export namespace config {
 	        this.video = source["video"];
 	        this.monitorIndex = source["monitorIndex"];
 	        this.stopOnError = source["stopOnError"];
+	        this.saveQuerySQL = source["saveQuerySQL"];
 	        this.zip = source["zip"];
 	        this.zipPasswordMode = source["zipPasswordMode"];
 	        this.zipPassword = source["zipPassword"];
+	        this.deleteSourcesAfterZip = source["deleteSourcesAfterZip"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

@@ -103,6 +103,35 @@ func GeneratePassword() (string, error) {
 	return b.String(), nil
 }
 
+// PruneSources deletes every file in runDir except the archive and its .pwd
+// sidecar — used to leave only the ZIP after a successful archive. It refuses to
+// run if the archive is missing or empty, so sources are never lost without a zip.
+func PruneSources(runDir string) error {
+	base := filepath.Base(runDir)
+	zipPath := filepath.Join(runDir, base+".zip")
+	info, err := os.Stat(zipPath)
+	if err != nil || info.Size() == 0 {
+		return fmt.Errorf("refusing to prune: archive missing or empty (%s)", zipPath)
+	}
+	entries, err := os.ReadDir(runDir)
+	if err != nil {
+		return err
+	}
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		name := e.Name()
+		if strings.HasSuffix(name, ".zip") || strings.HasSuffix(name, ".zip.pwd") {
+			continue
+		}
+		if err := os.Remove(filepath.Join(runDir, name)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // WritePwdFile writes the password to "<zipPath>.pwd" and returns that path.
 func WritePwdFile(zipPath, password string) (string, error) {
 	pwdPath := zipPath + ".pwd"

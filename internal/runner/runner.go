@@ -111,6 +111,16 @@ func Run(ctx context.Context, ui UI, p Params) (string, error) {
 			Status:     "ok",
 		}
 
+		// Optionally store the query itself next to its result (no checksum).
+		if p.Cfg.SaveQuerySQL {
+			sqlFile := stem + ".sql"
+			if werr := os.WriteFile(filepath.Join(runDir, sqlFile), []byte(q.SQL+"\n"), 0o644); werr != nil {
+				ui.Emit(EventLog, logMsg("could not write .sql for "+q.Name+": "+werr.Error()))
+			} else {
+				rd.SQLFile = sqlFile
+			}
+		}
+
 		res, err := psql.RunToFile(ctx, p.Conn, q.SQL, p.Cfg.EnforceReadOnly, p.Password, resultPath)
 		rd.DurationMS = res.Duration.Milliseconds()
 		rd.EndedAt = time.Now().Format(time.RFC3339)

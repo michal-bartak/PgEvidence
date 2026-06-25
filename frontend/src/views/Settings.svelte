@@ -167,6 +167,7 @@
       <div class="toggles">
         <label class="toggle"><input type="checkbox" bind:checked={c.enforceReadOnly} /> Enforce read-only transactions</label>
         <label class="toggle"><input type="checkbox" bind:checked={c.screenshots} /> Full-screen screenshot per query</label>
+        <label class="toggle"><input type="checkbox" bind:checked={c.saveQuerySQL} /> Save each query as a .sql file</label>
         <label class="toggle" class:disabled={!$env?.ffmpegFound}>
           <input type="checkbox" bind:checked={c.video} disabled={!$env?.ffmpegFound} />
           Record video (ffmpeg){#if !$env?.ffmpegFound}<span class="muted"> — ffmpeg not installed</span>{/if}
@@ -206,6 +207,11 @@
           ZIP uses legacy ZipCrypto encryption (opens with macOS <span class="mono">unzip</span>,
           Windows Explorer, 7-Zip) — compatible but cryptographically weak.
         </div>
+
+        <label class="toggle" style="margin-top:14px;">
+          <input type="checkbox" bind:checked={c.deleteSourcesAfterZip} disabled={!c.zip} />
+          Delete source files after a successful ZIP (keep only the archive)
+        </label>
       </div>
     </div>
 

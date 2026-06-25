@@ -66,6 +66,10 @@ export function OpenRunFolder(arg1) {
   return window['go']['main']['App']['OpenRunFolder'](arg1);
 }
 
+export function PruneRunDir(arg1) {
+  return window['go']['main']['App']['PruneRunDir'](arg1);
+}
+
 export function ReplaceAllQueries(arg1) {
   return window['go']['main']['App']['ReplaceAllQueries'](arg1);
 }

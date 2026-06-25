@@ -3,7 +3,7 @@
   import { cfg, queries, env, activeTab } from '../stores';
   import type { QueryPayload, ResultPayload, DonePayload } from '../stores';
   import { EventsOn } from '../../wailsjs/runtime/runtime';
-  import { StartRun, CancelRun, OpenRunFolder, SaveConfig, ArchiveRun, ArchiveRunAuto } from '../../wailsjs/go/main/App';
+  import { StartRun, CancelRun, OpenRunFolder, SaveConfig, ArchiveRun, ArchiveRunAuto, PruneRunDir } from '../../wailsjs/go/main/App';
   import type { archive } from '../../wailsjs/go/models';
 
   let running = false;
@@ -20,6 +20,7 @@
   let archiving = false;
   let archiveResult: archive.Result | null = null;
   let archiveError = '';
+  let pruned = false;
 
   // password prompt modal (explicit mode with no stored password)
   let pwModalOpen = false;
@@ -31,7 +32,7 @@
   onMount(() => {
     unsub.push(EventsOn('run:start', (p: any) => {
       running = true; total = p.total; current = null; result = null; logs = []; done = null;
-      archiveResult = null; archiveError = ''; archiving = false;
+      archiveResult = null; archiveError = ''; archiving = false; pruned = false;
     }));
     unsub.push(EventsOn('run:query', (p: QueryPayload) => { current = p; result = null; capturing = false; stopHold(); }));
     unsub.push(EventsOn('run:result', (p: ResultPayload) => {
@@ -50,7 +51,7 @@
   });
 
   async function archive(runDir: string) {
-    archiving = true; archiveError = ''; archiveResult = null;
+    archiving = true; archiveError = ''; archiveResult = null; pruned = false;
     try {
       const mode = $cfg?.zipPasswordMode ?? 'none';
       if (mode === 'auto') {
@@ -65,6 +66,11 @@
         archiveResult = await ArchiveRun(runDir, pw);
       } else {
         archiveResult = await ArchiveRun(runDir, '');
+      }
+      // Only after a confirmed archive, optionally drop the loose source files.
+      if (archiveResult && $cfg?.deleteSourcesAfterZip) {
+        await PruneRunDir(runDir);
+        pruned = true;
       }
     } catch (e) {
       archiveError = String(e);
@@ -214,6 +220,7 @@
             {:else if archiveResult.encrypted}
               <div class="muted" style="margin-top:6px;">Encrypted (ZipCrypto) with your password.</div>
             {/if}
+            {#if pruned}<div class="muted" style="margin-top:6px;">Source files removed — only the ZIP remains.</div>{/if}
           {/if}
         </div>
       {/if}

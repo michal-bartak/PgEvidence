@@ -37,6 +37,8 @@ export function MoveQuery(arg1:string,arg2:number):Promise<Array<store.Query>>;
 
 export function OpenRunFolder(arg1:string):Promise<void>;
 
+export function PruneRunDir(arg1:string):Promise<void>;
+
 export function ReplaceAllQueries(arg1:Array<store.Query>):Promise<Array<store.Query>>;
 
 export function RequestScreenAccess():Promise<boolean>;

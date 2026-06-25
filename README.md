@@ -21,6 +21,7 @@ One run writes a timestamped folder under your chosen output directory:
 
 ```
 audit-run-20260625-153000/
+  0001_active_users.sql          # the query text (if "Save each query as .sql" is on; no checksum)
   0001_active_users.csv
   0001_active_users.csv.sha256
   0001_active_users.png          # full-screen screenshot (incl. OS clock)
@@ -58,6 +59,10 @@ Encryption uses legacy **ZipCrypto** for compatibility — it opens with macOS
 cryptographically weak, and passwords are stored in plaintext (the explicit one in
 the config file, the auto one in the `.pwd` sidecar) — this is packaging
 convenience, not strong secrecy.
+
+Optionally, **Delete source files after a successful ZIP** (Settings → Archive)
+removes the loose files once the archive is written, leaving only the `.zip` (and
+`.pwd`) in the run folder. It only runs after the archive is confirmed present.
 
 ## Prerequisites
 
