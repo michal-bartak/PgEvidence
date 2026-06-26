@@ -1,21 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
   <Product Id="*"
-           Name="Audit Extractor"
+           Name="PgEvidence"
            Language="1033"
            Version="$(var.Version)"
            Manufacturer="Michal Bartak"
-           UpgradeCode="{14E72F94-B85F-4D5C-B529-41F1BC414CD4}">
+           UpgradeCode="{E0DC46C6-E20C-4205-9C2E-2B3B5FCD4135}">
 
     <Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine" />
-    <MajorUpgrade DowngradeErrorMessage="A newer version of Audit Extractor is already installed." />
+    <MajorUpgrade DowngradeErrorMessage="A newer version of PgEvidence is already installed." />
     <MediaTemplate EmbedCab="yes" />
 
     <!-- Pre-populate install dir from previous installation so upgrades land in the same place -->
     <Property Id="INSTALLFOLDER">
       <RegistrySearch Id="PreviousInstallPath"
                       Root="HKLM"
-                      Key="Software\MichalBartak\AuditPGExtractor"
+                      Key="Software\MichalBartak\PgEvidence"
                       Name="InstallPath"
                       Type="raw"
                       Win64="yes" />
@@ -37,20 +37,20 @@
     <!-- ── Layout ─────────────────────────────────────────── -->
     <Directory Id="TARGETDIR" Name="SourceDir">
       <Directory Id="ProgramFiles64Folder">
-        <Directory Id="INSTALLFOLDER" Name="Audit Extractor" />
+        <Directory Id="INSTALLFOLDER" Name="PgEvidence" />
       </Directory>
       <Directory Id="ProgramMenuFolder">
-        <Directory Id="AppMenuFolder" Name="Audit Extractor" />
+        <Directory Id="AppMenuFolder" Name="PgEvidence" />
       </Directory>
     </Directory>
 
     <ComponentGroup Id="MainFiles" Directory="INSTALLFOLDER">
       <Component Id="MainExe" Guid="*">
-        <File Id="AuditExtractorExe" Source="$(var.ExePath)" KeyPath="yes" />
+        <File Id="PgEvidenceExe" Source="$(var.ExePath)" KeyPath="yes" />
       </Component>
       <Component Id="InstallPathRegistry" Guid="*">
         <RegistryValue Root="HKLM"
-                       Key="Software\MichalBartak\AuditPGExtractor"
+                       Key="Software\MichalBartak\PgEvidence"
                        Name="InstallPath"
                        Type="string"
                        Value="[INSTALLFOLDER]"
@@ -61,13 +61,13 @@
     <DirectoryRef Id="AppMenuFolder">
       <Component Id="StartMenuShortcut" Guid="*">
         <Shortcut Id="AppShortcut"
-                  Name="Audit Extractor"
+                  Name="PgEvidence"
                   Description="Reproducible, checksummed PostgreSQL audit extracts"
-                  Target="[INSTALLFOLDER]audit-extractor.exe"
+                  Target="[INSTALLFOLDER]pgevidence.exe"
                   WorkingDirectory="INSTALLFOLDER"
                   Icon="AppIcon" />
         <RemoveFolder Id="RemoveAppMenuFolder" On="uninstall" />
-        <RegistryValue Root="HKCU" Key="Software\MichalBartak\AuditPGExtractor"
+        <RegistryValue Root="HKCU" Key="Software\MichalBartak\PgEvidence"
                        Name="installed" Type="integer" Value="1" KeyPath="yes" />
       </Component>
     </DirectoryRef>

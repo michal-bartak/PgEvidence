@@ -1,4 +1,4 @@
-# Audit Extractor
+# PgEvidence
 
 A cross-platform desktop app for running ad-hoc PostgreSQL extracts for auditors —
 and producing **reproducible, tamper-evident evidence** that each query was run and
@@ -20,10 +20,10 @@ Result and checksum (and screenshot) for a query share a common filename stem.
 Download the latest installer from the
 [Releases page](https://github.com/michal-bartak/Audit-PG-Extractor/releases):
 
-- **macOS** — `…-macos-universal.dmg`: open it, drag **Audit Extractor** to
+- **macOS** — `…-macos-universal.dmg`: open it, drag **PgEvidence** to
   Applications. The app is unsigned, so on first launch either download the DMG via
   `curl -LJO <url>` (no quarantine) or run
-  `xattr -d com.apple.quarantine /Applications/audit-extractor.app`. Then grant
+  `xattr -d com.apple.quarantine /Applications/pgevidence.app`. Then grant
   Screen Recording permission and reopen.
 - **Windows** — `…-windows-amd64.msi`: run it (SmartScreen → More info → Run anyway).
 - **Linux** — `sudo apt install ./…-linux-amd64.deb` (Debian/Ubuntu) or

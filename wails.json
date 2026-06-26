@@ -1,14 +1,14 @@
 {
   "$schema": "https://wails.io/schemas/config.v2.json",
-  "name": "audit-extractor",
-  "outputfilename": "audit-extractor",
+  "name": "pgevidence",
+  "outputfilename": "pgevidence",
   "build:tags": "webkit2_41",
   "frontend:install": "npm install",
   "frontend:build": "npm run build",
   "frontend:dev:watcher": "npm run dev",
   "frontend:dev:serverUrl": "auto",
   "info": {
-    "productName": "Audit Extractor",
+    "productName": "PgEvidence",
     "productVersion": "0.2.0",
     "copyright": "© Michal Bartak",
     "comments": "Reproducible, checksummed PostgreSQL audit extracts"

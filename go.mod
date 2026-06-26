@@ -1,4 +1,4 @@
-module audit-extractor
+module pgevidence
 
 go 1.23.0
 

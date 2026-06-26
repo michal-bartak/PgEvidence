@@ -41,7 +41,7 @@ func Screenshot(displayIndex int, outPath string) error {
 	return screenshotCG(displayIndex, outPath)
 }
 
-const permHint = "Screen Recording permission is required: enable Audit Extractor under " +
+const permHint = "Screen Recording permission is required: enable PgEvidence under " +
 	"System Settings > Privacy & Security > Screen Recording, then quit and reopen the app."
 
 // screenshotMac captures via /usr/sbin/screencapture. Display numbers are

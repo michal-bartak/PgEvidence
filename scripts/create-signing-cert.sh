@@ -10,7 +10,7 @@
 # signing identity, not on Gatekeeper trust.
 set -euo pipefail
 
-IDENTITY_NAME="${SIGN_IDENTITY:-Audit Extractor Dev}"
+IDENTITY_NAME="${SIGN_IDENTITY:-PgEvidence Dev}"
 KEYCHAIN="$HOME/Library/Keychains/login.keychain-db"
 
 if security find-identity -p codesigning | grep -q "$IDENTITY_NAME"; then

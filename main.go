@@ -18,13 +18,17 @@ var versionRaw string
 // AppVersion is the application version, sourced from the repo-root VERSION file.
 var AppVersion = strings.TrimSpace(versionRaw)
 
+// AppName is the single source of truth for the product's display name (window
+// title + UI header via EnvInfo). Packaging names live in wails.json.
+const AppName = "PgEvidence"
+
 func main() {
 	// Create an instance of the app structure
 	app := NewApp()
 
 	// Create application with options
 	err := wails.Run(&options.App{
-		Title:  "Audit Extractor",
+		Title:  AppName,
 		Width:  1200,
 		Height: 820,
 		AssetServer: &assetserver.Options{

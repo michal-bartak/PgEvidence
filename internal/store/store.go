@@ -13,7 +13,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"audit-extractor/internal/config"
+	"pgevidence/internal/config"
 )
 
 // Query is a single named SQL statement to run against the database.

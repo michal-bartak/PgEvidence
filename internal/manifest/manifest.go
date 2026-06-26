@@ -9,7 +9,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"audit-extractor/internal/checksum"
+	"pgevidence/internal/checksum"
 )
 
 // ConnInfo is the non-secret description of the target connection.

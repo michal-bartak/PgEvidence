@@ -1,13 +1,13 @@
-# Audit Extractor — build helpers.
+# PgEvidence — build helpers.
 #
 # On macOS, screenshots need Screen Recording permission, which only persists
 # across rebuilds if the app is signed with a STABLE identity. `make dist` builds
-# and then re-signs with the self-signed "Audit Extractor Dev" cert created by
+# and then re-signs with the self-signed "PgEvidence Dev" cert created by
 # scripts/create-signing-cert.sh.
 
-APP := build/bin/audit-extractor.app
+APP := build/bin/pgevidence.app
 ICNS := build/appicon.icns
-SIGN_IDENTITY ?= Audit Extractor Dev
+SIGN_IDENTITY ?= PgEvidence Dev
 LSREGISTER := /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/LaunchServices.framework/Versions/A/Support/lsregister
 
 .PHONY: build sign dist dev cert reset-screen-perm vet icon fix-icon
@@ -42,7 +42,7 @@ cert:
 
 # Clear any stale Screen Recording grant so the freshly signed app can be granted.
 reset-screen-perm:
-	tccutil reset ScreenCapture com.wails.audit-extractor || true
+	tccutil reset ScreenCapture com.wails.pgevidence || true
 
 vet:
 	go vet ./...

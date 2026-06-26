@@ -14,12 +14,12 @@ import (
 	"strings"
 	"time"
 
-	"audit-extractor/internal/capture"
-	"audit-extractor/internal/checksum"
-	"audit-extractor/internal/config"
-	"audit-extractor/internal/manifest"
-	"audit-extractor/internal/psql"
-	"audit-extractor/internal/store"
+	"pgevidence/internal/capture"
+	"pgevidence/internal/checksum"
+	"pgevidence/internal/config"
+	"pgevidence/internal/manifest"
+	"pgevidence/internal/psql"
+	"pgevidence/internal/store"
 )
 
 // UI is the surface the runner uses to talk to the frontend. App implements it

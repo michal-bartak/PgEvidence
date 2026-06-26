@@ -1,4 +1,4 @@
-# CLAUDE.md — Audit Extractor
+# CLAUDE.md — PgEvidence
 
 Developer/agent notes for this repo. Read this before changing code. **This file
 is the maintained in-repo design record — keep the Decision log (bottom) and these
@@ -54,7 +54,7 @@ is a thin live view. `App` (in `app.go`) is the Wails-bound object and implement
 ```
 main.go                      Wails bootstrap (window 1200x820, bindings)
 app.go                       App struct: bound methods + runner.UI (Emit/BringToFront)
-internal/config/             Config + Connection list; JSON in os.UserConfigDir()/audit-extractor
+internal/config/             Config + Connection list; JSON in os.UserConfigDir()/pgevidence
 internal/store/              Query CRUD: Upsert/Delete/Move/ReplaceAll/Import/Export
                              Import parses JSON set OR splits a SQL script on top-level ';'
                              (comment-aware); query name = the free text/comment
@@ -142,14 +142,14 @@ unsigned (Gatekeeper/SmartScreen documented in the release notes).
 **macOS signing (why `make dist`, not `wails build`):** `wails build` ad-hoc
 signs, and an ad-hoc signature's hash changes every build, so the Screen
 Recording (TCC) grant does NOT persist across rebuilds. Signing with a stable
-self-signed identity ("Audit Extractor Dev", created by
+self-signed identity ("PgEvidence Dev", created by
 `scripts/create-signing-cert.sh`) makes the grant stick. `make dist` builds then
-`codesign --force --deep --sign "Audit Extractor Dev"`. After the FIRST signed
+`codesign --force --deep --sign "PgEvidence Dev"`. After the FIRST signed
 build, run `make reset-screen-perm` and grant once; subsequent signed builds keep
 it. (`security find-identity -v` shows 0 valid identities — expected, the cert is
 untrusted; codesign still signs and TCC keys on the signing identity, not trust.)
 
-Module path is `audit-extractor`; internal packages import as `audit-extractor/internal/...`.
+Module path is `pgevidence`; internal packages import as `pgevidence/internal/...`.
 
 ## Platform gotchas
 
@@ -232,7 +232,7 @@ decision is made or reversed.
   read-only is set at connection startup so it can't contaminate CSV output.
 - **Stable self-signed signing for macOS dev builds.** Ad-hoc signatures rotate
   their hash each build, so the Screen Recording (TCC) grant won't persist. `make
-  dist` re-signs with "Audit Extractor Dev"; `scripts/create-signing-cert.sh`
+  dist` re-signs with "PgEvidence Dev"; `scripts/create-signing-cert.sh`
   creates the cert (OpenSSL 3 needs `-legacy` p12 for Apple `security`).
 - **PATH fallback for GUI apps.** Finder-launched apps get a minimal PATH, so
   `psql`/`ffmpeg` are resolved from common install dirs too.

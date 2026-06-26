@@ -207,7 +207,7 @@ jobs:
           cp /tmp/dmg-background.png "$staging/.background/background.png"
 
           # 3. Create writable DMG
-          hdiutil create -volname "Audit Extractor" -srcfolder "$staging" \
+          hdiutil create -volname "PgEvidence" -srcfolder "$staging" \
             -ov -format UDRW -size 200m /tmp/ae-rw.dmg
 
           # 4. Mount
@@ -220,7 +220,7 @@ jobs:
           # 5. Window layout via Finder AppleScript
           osascript \
             -e 'tell application "Finder"' \
-            -e '  tell disk "Audit Extractor"' \
+            -e '  tell disk "PgEvidence"' \
             -e '    open' \
             -e '    set current view of container window to icon view' \
             -e '    set toolbar visible of container window to false' \
@@ -254,7 +254,7 @@ jobs:
           output=$(jq -r '.outputfilename' wails.json)
           version=$(tr -d ' \n\r' < VERSION)
           binary="build/bin/$output"
-          pkgname="audit-extractor"
+          pkgname="pgevidence"
           description="Reproducible, checksummed PostgreSQL audit extracts"
           url="https://github.com/michal-bartak/Audit-PG-Extractor"
           maintainer="Michal Bartak <michal.bartak@betsys.com>"
@@ -268,14 +268,14 @@ jobs:
           printf '%s\n' \
             '[Desktop Entry]' \
             'Type=Application' \
-            'Name=Audit Extractor' \
+            'Name=PgEvidence' \
             'Comment=Reproducible, checksummed PostgreSQL audit extracts' \
-            'Exec=env GDK_BACKEND=x11 /usr/bin/audit-extractor' \
-            'Icon=audit-extractor' \
+            'Exec=env GDK_BACKEND=x11 /usr/bin/pgevidence' \
+            'Icon=pgevidence' \
             'Categories=Utility;Database;' \
-            > /tmp/audit-extractor.desktop
+            > /tmp/pgevidence.desktop
 
-          cp build/appicon.png /tmp/audit-extractor.png
+          cp build/appicon.png /tmp/pgevidence.png
 
           # .deb — runtime deps must match the WebKit linked at build time; psql for extracts
           fpm -s dir -t deb \
@@ -291,8 +291,8 @@ jobs:
             --architecture amd64 \
             --package "$output-v$version-linux-amd64.deb" \
             "$binary=/usr/bin/$output" \
-            /tmp/audit-extractor.desktop=/usr/share/applications/audit-extractor.desktop \
-            /tmp/audit-extractor.png=/usr/share/icons/hicolor/256x256/apps/audit-extractor.png
+            /tmp/pgevidence.desktop=/usr/share/applications/pgevidence.desktop \
+            /tmp/pgevidence.png=/usr/share/icons/hicolor/256x256/apps/pgevidence.png
 
           # .rpm
           fpm -s dir -t rpm \
@@ -308,13 +308,13 @@ jobs:
             --architecture x86_64 \
             --package "$output-v$version-linux-amd64.rpm" \
             "$binary=/usr/bin/$output" \
-            /tmp/audit-extractor.desktop=/usr/share/applications/audit-extractor.desktop \
-            /tmp/audit-extractor.png=/usr/share/icons/hicolor/256x256/apps/audit-extractor.png
+            /tmp/pgevidence.desktop=/usr/share/applications/pgevidence.desktop \
+            /tmp/pgevidence.png=/usr/share/icons/hicolor/256x256/apps/pgevidence.png
 
       - uses: actions/upload-artifact@v7
         with:
           name: dist-${{ matrix.goos }}
-          path: "audit-extractor-v*"
+          path: "pgevidence-v*"
           if-no-files-found: error
 
   release:
@@ -332,7 +332,7 @@ jobs:
           draft: ${{ inputs.draft }}
           generate_release_notes: true
           body: |
-            Audit Extractor runs your SQL set against PostgreSQL and produces
+            PgEvidence runs your SQL set against PostgreSQL and produces
             tamper-evident evidence (CSV + SHA-256 + full-screen screenshot + manifest).
 
             **Requires `psql`** (PostgreSQL client) on the machine running the app:
@@ -342,17 +342,17 @@ jobs:
 
             ### Installing
 
-            - **macOS:** Open the `.dmg`, drag **Audit Extractor** to Applications, then eject. The app is unsigned, so Gatekeeper blocks it on first launch:
+            - **macOS:** Open the `.dmg`, drag **PgEvidence** to Applications, then eject. The app is unsigned, so Gatekeeper blocks it on first launch:
               - **Recommended — download with curl** (no quarantine flag is set):
                 ```
-                curl -LJO https://github.com/michal-bartak/Audit-PG-Extractor/releases/download/${{ needs.prepare.outputs.tag }}/audit-extractor-${{ needs.prepare.outputs.tag }}-macos-universal.dmg
+                curl -LJO https://github.com/michal-bartak/Audit-PG-Extractor/releases/download/${{ needs.prepare.outputs.tag }}/pgevidence-${{ needs.prepare.outputs.tag }}-macos-universal.dmg
                 ```
               - **Already downloaded via browser** — run once after dragging to Applications:
                 ```
-                xattr -d com.apple.quarantine /Applications/audit-extractor.app
+                xattr -d com.apple.quarantine /Applications/pgevidence.app
                 ```
               Then grant Screen Recording permission (System Settings → Privacy & Security) for the proof-of-time screenshots, and reopen the app.
             - **Windows:** Run the `.msi`. SmartScreen may warn; choose **More info → Run anyway**.
-            - **Linux (Debian/Ubuntu):** `sudo apt install ./audit-extractor-${{ needs.prepare.outputs.tag }}-linux-amd64.deb`
-            - **Linux (Fedora/RHEL):** `sudo dnf install ./audit-extractor-${{ needs.prepare.outputs.tag }}-linux-amd64.rpm`
+            - **Linux (Debian/Ubuntu):** `sudo apt install ./pgevidence-${{ needs.prepare.outputs.tag }}-linux-amd64.deb`
+            - **Linux (Fedora/RHEL):** `sudo dnf install ./pgevidence-${{ needs.prepare.outputs.tag }}-linux-amd64.rpm`
           files: dist/*

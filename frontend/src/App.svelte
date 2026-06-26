@@ -31,7 +31,7 @@
   let screenMsg = '';
   async function grantScreen() {
     await RequestScreenAccess();
-    screenMsg = 'If a system prompt appeared, enable Audit Extractor, then quit and reopen the app for it to take effect.';
+    screenMsg = `If a system prompt appeared, enable ${$env?.appName ?? 'the app'}, then quit and reopen the app for it to take effect.`;
   }
 </script>
 
@@ -39,7 +39,7 @@
   <header>
     <div class="brand">
       <span class="dot"></span>
-      <strong>Audit Extractor</strong>
+      <strong>{$env?.appName ?? 'PgEvidence'}</strong>
       {#if $env?.appVersion}<span class="ver">v{$env.appVersion}</span>{/if}
       <span class="muted">— reproducible, checksummed DB extracts</span>
     </div>

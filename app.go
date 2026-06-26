@@ -10,13 +10,13 @@ import (
 
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 
-	"audit-extractor/internal/archive"
-	"audit-extractor/internal/capture"
-	"audit-extractor/internal/config"
-	"audit-extractor/internal/manifest"
-	"audit-extractor/internal/psql"
-	"audit-extractor/internal/runner"
-	"audit-extractor/internal/store"
+	"pgevidence/internal/archive"
+	"pgevidence/internal/capture"
+	"pgevidence/internal/config"
+	"pgevidence/internal/manifest"
+	"pgevidence/internal/psql"
+	"pgevidence/internal/runner"
+	"pgevidence/internal/store"
 )
 
 // App is the Wails-bound application object. Its exported methods are callable
@@ -134,6 +134,7 @@ type EnvInfo struct {
 	ConfigDir    string `json:"configDir"`
 	ScreenAccess bool   `json:"screenAccess"`
 	AppVersion   string `json:"appVersion"`
+	AppName      string `json:"appName"`
 }
 
 func (a *App) DetectEnvironment() EnvInfo {
@@ -145,6 +146,7 @@ func (a *App) DetectEnvironment() EnvInfo {
 		NumDisplays:  capture.NumDisplays(),
 		ScreenAccess: capture.HasScreenAccess(),
 		AppVersion:   AppVersion,
+		AppName:      AppName,
 	}
 	if path, ver, err := psql.Detect(); err == nil {
 		info.PSQLFound = true

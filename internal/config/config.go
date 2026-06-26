@@ -45,16 +45,24 @@ type Config struct {
 	ExcludeVideoFromZip  bool         `json:"excludeVideoFromZip"` // keep run.mp4 out of the archive (and out of prune)
 }
 
-const appDirName = "audit-extractor"
+const appDirName = "pgevidence"
+const legacyAppDirName = "audit-extractor" // pre-rename; migrated once
 
 // AppDir returns the application's config/state directory, creating it if
-// necessary (e.g. ~/Library/Application Support/audit-extractor on macOS).
+// necessary (e.g. ~/Library/Application Support/pgevidence on macOS). On first run
+// after the rename it migrates the old "audit-extractor" dir if present.
 func AppDir() (string, error) {
 	base, err := os.UserConfigDir()
 	if err != nil {
 		return "", err
 	}
 	dir := filepath.Join(base, appDirName)
+	if _, statErr := os.Stat(dir); os.IsNotExist(statErr) {
+		legacy := filepath.Join(base, legacyAppDirName)
+		if _, e := os.Stat(legacy); e == nil {
+			_ = os.Rename(legacy, dir) // best-effort migration of existing config/queries
+		}
+	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", err
 	}

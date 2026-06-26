@@ -129,6 +129,7 @@ export namespace main {
 	    configDir: string;
 	    screenAccess: boolean;
 	    appVersion: string;
+	    appName: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new EnvInfo(source);
@@ -144,6 +145,7 @@ export namespace main {
 	        this.configDir = source["configDir"];
 	        this.screenAccess = source["screenAccess"];
 	        this.appVersion = source["appVersion"];
+	        this.appName = source["appName"];
 	    }
 	}
 
