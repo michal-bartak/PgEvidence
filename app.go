@@ -179,6 +179,27 @@ func (a *App) OpenScreenRecordingSettings() error {
 		"x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture").Start()
 }
 
+// GrantScreenAccess drives the "Grant permission" button. It does exactly ONE of
+// two things, never both: the FIRST time, it shows the system permission prompt
+// (which itself offers an "Open System Settings" button) and registers the app;
+// afterwards the prompt will never reappear, so it opens the Settings pane
+// directly. We persist whether the prompt has been shown, since the TCC API
+// can't distinguish "not yet asked" from "asked and denied".
+func (a *App) GrantScreenAccess() error {
+	if runtime.GOOS != "darwin" {
+		return nil
+	}
+	cfg, err := config.Load()
+	if err != nil {
+		return err
+	}
+	if !cfg.ScreenAccessPrompted {
+		capture.RequestScreenAccess() // shows the popup + registers the app
+		return config.Update(func(c *config.Config) { c.ScreenAccessPrompted = true })
+	}
+	return a.OpenScreenRecordingSettings()
+}
+
 // TestConnection runs `SELECT 1` against the given connection.
 func (a *App) TestConnection(connID string) error {
 	cfg, err := config.Load()

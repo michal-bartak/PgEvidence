@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { activeTab, cfg, queries, env, runOpts, savedTick, isRunning } from './stores';
-  import { GetConfig, ListQueries, DetectEnvironment, RequestScreenAccess, OpenScreenRecordingSettings, SaveWindowSize } from '../wailsjs/go/main/App';
+  import { GetConfig, ListQueries, DetectEnvironment, GrantScreenAccess, SaveWindowSize } from '../wailsjs/go/main/App';
   import { WindowGetSize } from '../wailsjs/runtime/runtime';
   import { applyTheme } from './theme';
   import Queries from './views/Queries.svelte';
@@ -73,10 +73,9 @@
   ];
 
   async function grantScreen() {
-    // First launch: this shows the system prompt. Afterwards it's a no-op, so
-    // also open the Screen Recording pane where the grant can be toggled.
-    await RequestScreenAccess();
-    await OpenScreenRecordingSettings();
+    // Backend decides: first time shows the system prompt (which itself offers
+    // "Open System Settings"); afterwards it opens the Settings pane. Never both.
+    await GrantScreenAccess();
   }
   // Temporary, non-persisted dismissal — restored on next app launch.
   let screenBannerHidden = false;

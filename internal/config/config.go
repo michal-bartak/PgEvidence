@@ -50,6 +50,7 @@ type Config struct {
 	ExcludeVideoFromZip  bool         `json:"excludeVideoFromZip"` // keep run.mp4 out of the archive (and out of prune)
 	WindowWidth          int          `json:"windowWidth,omitempty"`  // last OS window size; 0 = use default
 	WindowHeight         int          `json:"windowHeight,omitempty"`
+	ScreenAccessPrompted bool         `json:"screenAccessPrompted,omitempty"` // macOS: have we shown the TCC prompt once?
 }
 
 // appDirName is the human-readable config/state dir (paths show "PgEvidence", not

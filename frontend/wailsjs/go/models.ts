@@ -71,6 +71,7 @@ export namespace config {
 	    excludeVideoFromZip: boolean;
 	    windowWidth?: number;
 	    windowHeight?: number;
+	    screenAccessPrompted?: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new Config(source);
@@ -99,6 +100,7 @@ export namespace config {
 	        this.excludeVideoFromZip = source["excludeVideoFromZip"];
 	        this.windowWidth = source["windowWidth"];
 	        this.windowHeight = source["windowHeight"];
+	        this.screenAccessPrompted = source["screenAccessPrompted"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

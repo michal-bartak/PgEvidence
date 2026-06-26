@@ -25,6 +25,8 @@ export function ExportQueries():Promise<string>;
 
 export function GetConfig():Promise<config.Config>;
 
+export function GrantScreenAccess():Promise<void>;
+
 export function HasSessionPassword(arg1:string):Promise<boolean>;
 
 export function ImportQueries(arg1:string):Promise<Array<store.Query>>;

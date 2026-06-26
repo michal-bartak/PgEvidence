@@ -42,6 +42,10 @@ export function GetConfig() {
   return window['go']['main']['App']['GetConfig']();
 }
 
+export function GrantScreenAccess() {
+  return window['go']['main']['App']['GrantScreenAccess']();
+}
+
 export function HasSessionPassword(arg1) {
   return window['go']['main']['App']['HasSessionPassword'](arg1);
 }

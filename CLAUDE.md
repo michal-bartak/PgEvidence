@@ -203,13 +203,18 @@ Module path is `pgevidence`; internal packages import as `pgevidence/internal/..
   viewport, which excludes the OS chrome) makes the window **shrink a little every
   launch** — the bug the `osc` project hit (its commit "Fix to viewport size on
   Windows"). MinWidth/MinHeight also block dragging below the floor.
-- **macOS "Grant permission" must open System Settings, not just re-request.**
+- **macOS "Grant permission" does exactly ONE thing, never both.**
   `CGRequestScreenCaptureAccess` only ever shows the prompt once; once the app is
-  listed (even if the user disabled it) re-requesting is a silent no-op. So the
-  banner button calls `RequestScreenAccess` *and then* `OpenScreenRecordingSettings`
-  (`open x-apple.systempreferences:...?Privacy_ScreenCapture`, darwin-only) so the
-  grant can actually be toggled. The banner has a session-only ✕ dismiss (a plain
-  non-persisted flag; reappears next launch if access is still missing).
+  listed (even if disabled) re-requesting is a silent no-op. The system prompt
+  *itself* has an "Open System Settings" button, so showing the prompt AND opening
+  Settings is redundant/confusing. `App.GrantScreenAccess` (darwin) therefore
+  branches on the persisted `config.ScreenAccessPrompted` flag: **first time** →
+  `capture.RequestScreenAccess` (popup + register the app), set the flag;
+  **afterwards** → `OpenScreenRecordingSettings`
+  (`open x-apple.systempreferences:...?Privacy_ScreenCapture`). The flag is needed
+  because the TCC API can't distinguish "not yet asked" from "asked and denied".
+  The banner also has a session-only ✕ dismiss (non-persisted; reappears next
+  launch if access is still missing).
 - **Registering the app in the Screen Recording list needs a real capture, not
   `CGRequest`.** Because real screenshots go through the external `screencapture`
   tool, the app process never calls an in-process capture API, so on a fresh
@@ -218,7 +223,9 @@ Module path is `pgevidence`; internal packages import as `pgevidence/internal/..
   throwaway, silent `screencapture` (`registerViaScreencapture` in `capture.go`):
   a denied attempt registers the app via the responsible-process chain — the same
   way a normal run does. (Can't use `CGDisplayCreateImage` to trigger it: hard-
-  unavailable in the macOS 15 SDK.)
+  unavailable in the macOS 15 SDK.) NOTE for testing with `make reset-screen-perm`:
+  that resets TCC but not the config flag, so also clear `screenAccessPrompted`
+  (or delete config.json) to re-test the first-time prompt path.
 - **App icon (cross-project gotcha, confirmed in the `osc` project too):**
   - macOS: the `.icns` Wails generates **omits the `@1x` sizes**, so Finder/Dock/
     cmd-tab fall back to a generic icon. Fix: generate a complete `.icns`
