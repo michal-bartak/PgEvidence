@@ -26,7 +26,9 @@ Plus, per run:
 - `manifest.json` + `manifest.json.sha256` — run summary and its checksum
 - `<run>.zip` (+ `.zip.pwd`) — optional archive of everything above
 
-Verify any file with `sha256sum -c <name>.sha256`.
+Verify any file with `sha256sum -c <name>.sha256`. The sidecars use the standard
+`sha256sum` (GNU coreutils) text format, so file managers like **Total Commander**
+or **Double Commander** can check them too.
 
 ## Highlights
 
