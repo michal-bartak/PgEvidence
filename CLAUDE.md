@@ -207,14 +207,19 @@ Module path is `pgevidence`; internal packages import as `pgevidence/internal/..
   `CGRequestScreenCaptureAccess` only ever shows the prompt once; once the app is
   listed (even if disabled) re-requesting is a silent no-op. The system prompt
   *itself* has an "Open System Settings" button, so showing the prompt AND opening
-  Settings is redundant/confusing. `App.GrantScreenAccess` (darwin) therefore
-  branches on the persisted `config.ScreenAccessPrompted` flag: **first time** →
-  `capture.RequestScreenAccess` (popup + register the app), set the flag;
-  **afterwards** → `OpenScreenRecordingSettings`
-  (`open x-apple.systempreferences:...?Privacy_ScreenCapture`). The flag is needed
-  because the TCC API can't distinguish "not yet asked" from "asked and denied".
-  The banner also has a session-only ✕ dismiss (non-persisted; reappears next
-  launch if access is still missing).
+  Settings is redundant/confusing. `App.GrantScreenAccess` (darwin) **always** runs
+  `capture.RegisterForScreenAccess` first (a real capture attempt — the only
+  reliable way to get listed; self-regulating: it shows the prompt only when status
+  is "not determined", silent when denied), then branches on the persisted
+  `config.ScreenAccessPrompted` flag: **first time** → just set the flag (the
+  prompt's own button is enough); **afterwards** → `OpenScreenRecordingSettings`
+  (`open x-apple.systempreferences:...?Privacy_ScreenCapture`). The always-register
+  step repairs the state where a prior prompt left the app *unlisted* — there is NO
+  public API to query list membership (CGPreflight can't tell "not listed" from
+  "listed but disabled"), so we guarantee registration rather than detect it. The
+  flag is needed because the TCC API can't distinguish "not yet asked" from "asked
+  and denied". The banner also has a session-only ✕ dismiss (non-persisted;
+  reappears next launch if access is still missing).
 - **Registering the app in the Screen Recording list needs a real capture, not
   `CGRequest`.** Because real screenshots go through the external `screencapture`
   tool, the app process never calls an in-process capture API, so on a fresh

@@ -74,6 +74,14 @@ func screenshotMac(displayIndex int, outPath string) error {
 	return nil
 }
 
+// RegisterForScreenAccess forces the app into the macOS Screen Recording list by
+// performing a real capture attempt. There is NO public API to query list
+// membership (CGPreflight can't tell "not listed" from "listed but disabled"), so
+// instead of detecting it we guarantee it: the attempt registers the app via the
+// responsible-process chain. It is self-regulating — it shows the system prompt
+// only when status is "not determined", and is silent when access was denied.
+func RegisterForScreenAccess() { registerViaScreencapture() }
+
 // registerViaScreencapture runs a throwaway, silent `screencapture` so macOS
 // adds the app to the Screen Recording list. A denied attempt is exactly what
 // triggers registration (via the responsible-process chain), so the error and

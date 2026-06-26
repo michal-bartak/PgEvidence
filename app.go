@@ -193,10 +193,19 @@ func (a *App) GrantScreenAccess() error {
 	if err != nil {
 		return err
 	}
+	// Always force-register: a real capture attempt is the only reliable way to
+	// get the app into the Screen Recording list, and it's self-regulating — it
+	// shows the system prompt only when status is "not determined" and is silent
+	// otherwise. This also repairs the case where a prior prompt left the app
+	// unlisted, so by the time we open Settings the app is guaranteed to be there.
+	capture.RegisterForScreenAccess()
 	if !cfg.ScreenAccessPrompted {
-		capture.RequestScreenAccess() // shows the popup + registers the app
+		// First ask: the prompt has its own "Open System Settings" button, so
+		// don't also open Settings — that would be the redundant double-action.
 		return config.Update(func(c *config.Config) { c.ScreenAccessPrompted = true })
 	}
+	// Already asked once (no fresh prompt will appear) — open Settings so the
+	// now-listed app can be toggled on.
 	return a.OpenScreenRecordingSettings()
 }
 
