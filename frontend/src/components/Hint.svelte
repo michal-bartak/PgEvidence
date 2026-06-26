@@ -31,7 +31,7 @@
   on:focus={show}
   on:blur={hide}
   on:click|preventDefault
->{label}</button>
+><span class="glyph">{label}</span></button>
 
 {#if open}
   <div class="pop" style="left:{x}px; top:{y}px;">{text}<slot /></div>
@@ -44,8 +44,13 @@
     color: var(--muted); background: var(--bg-3);
     border: 1px solid var(--border-strong);
     display: inline-flex; align-items: center; justify-content: center;
-    vertical-align: middle;
+    /* middle aligns to x-height, which reads ~1px low next to cap-height text;
+       relative nudge raises the badge to the optical centre. */
+    vertical-align: middle; position: relative; top: -1px;
   }
+  /* The "?" glyph sits optically high in the em-box; nudge it down ~1px so it
+     reads as vertically centred within the badge. */
+  .glyph { position: relative; top: 1px; line-height: 1; }
   .q:hover { color: var(--text); }
   .q.ok { color: var(--ok); border-color: var(--ok); }
   .q.err { color: var(--err); border-color: var(--err); }

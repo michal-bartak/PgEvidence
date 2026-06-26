@@ -73,9 +73,12 @@ internal/capture/            capture.go: full-display screenshot (kbinani/screen
                              recorder.go: optional ffmpeg recorder (experimental, per-OS input)
 internal/manifest/           Manifest struct + Write (manifest.json + manifest.json.sha256)
 internal/archive/            ZIP packaging (yeka/zip, ZipCrypto); Create/GeneratePassword/WritePwdFile
+internal/proc/               proc.Hide(*exec.Cmd): Windows-only CREATE_NO_WINDOW so psql/ffmpeg
+                             children don't flash a console; no-op elsewhere (build-tagged)
 internal/runner/             Orchestrates the run: loop, run:* events, dwell, screenshot, manifest
-frontend/src/App.svelte      Shell: tabs (Queries/Run/Settings), loads env+config+queries on mount
-frontend/src/stores.ts       Svelte stores (cfg, queries, env, activeTab) + event payload types
+frontend/src/App.svelte      Shell: tabs (Queries/Run/Settings), loads env+config+queries on mount;
+                             seeds runOpts from config; Settings-tab "Saved" flash; window-size persist
+frontend/src/stores.ts       Svelte stores (cfg, queries, env, activeTab, runOpts, savedTick) + payloads
 frontend/src/theme.ts        applyTheme(system|light|dark): sets <html data-theme>; Linux uses IsSystemDark
 frontend/src/views/          Queries.svelte, Run.svelte, Settings.svelte
 frontend/src/components/      Hint.svelte (fixed-positioned "?" hover popover)
@@ -185,6 +188,28 @@ Module path is `pgevidence`; internal packages import as `pgevidence/internal/..
   same. All psql calls go through the resolved absolute path.
 - `psql` must be installed (PATH or a common location). `ffmpeg` only if video is enabled.
 - Single-monitor capture by default (`config.MonitorIndex`, default 0).
+- **Windows: hide the child console window.** Launching a console program
+  (`psql.exe`, `ffmpeg.exe`) from a GUI app flashes a shell window on each call.
+  Every console child runs through `proc.Hide(cmd)` first — Windows-only, it sets
+  `SysProcAttr.HideWindow` + `CREATE_NO_WINDOW` (`0x08000000`); a `//go:build
+  !windows` stub is a no-op. Wired into `psql.RunToFile/Test/Detect` and the
+  ffmpeg recorder. (Not macOS `screencapture`/`open` or Windows `explorer` — GUI,
+  no console.) Can't be reproduced on macOS; verify with `GOOS=windows go build`.
+- **Window size persists across launches; save the OS size, not the viewport.**
+  `config.WindowWidth/Height` (omitempty) are restored in `main.go` (floored at
+  `minWinW/H` 900×600, default 1200×820). The frontend saves on a debounced
+  `resize` via Wails `WindowGetSize()` (the OS window size) through
+  `App.SaveWindowSize`. Using `window.innerWidth/innerHeight` (the webview
+  viewport, which excludes the OS chrome) makes the window **shrink a little every
+  launch** — the bug the `osc` project hit (its commit "Fix to viewport size on
+  Windows"). MinWidth/MinHeight also block dragging below the floor.
+- **macOS "Grant permission" must open System Settings, not just re-request.**
+  `CGRequestScreenCaptureAccess` only ever shows the prompt once; once the app is
+  listed (even if the user disabled it) re-requesting is a silent no-op. So the
+  banner button calls `RequestScreenAccess` *and then* `OpenScreenRecordingSettings`
+  (`open x-apple.systempreferences:...?Privacy_ScreenCapture`, darwin-only) so the
+  grant can actually be toggled. The banner has a session-only ✕ dismiss (a plain
+  non-persisted flag; reappears next launch if access is still missing).
 - **App icon (cross-project gotcha, confirmed in the `osc` project too):**
   - macOS: the `.icns` Wails generates **omits the `@1x` sizes**, so Finder/Dock/
     cmd-tab fall back to a generic icon. Fix: generate a complete `.icns`
@@ -310,6 +335,26 @@ decision is made or reversed.
   deb+rpm (Linux via fpm) on a `vX.Y.Z` tag. WiX MSI chosen over NSIS; Linux packages
   hard-depend on the Postgres client (the app needs `psql`). Ships unsigned. Fresh MSI
   UpgradeCode GUID (never reuse osc's). See the Release / packaging section above.
+- **Run-page controls are per-run, not persisted.** Screenshots/Video/ZIP/
+  Delete-sources/Exclude-video and the target connection live in an ephemeral
+  `runOpts` store, seeded from saved config at app start (load-time sync only).
+  They drive the current run but never write back — Settings stays the persisted
+  source of truth. `StartRun(screenshots, video, connectionID)` applies them as
+  overrides without saving; `ArchiveRun/ArchiveRunAuto/PruneRunDir` take the
+  exclude/keep-video flag explicitly (ZIP password policy stays a Settings concern).
+  Reverses the earlier "Run controls write the shared cfg + persist" decision.
+- **Settings save feedback = flash the Settings tab, not a floating chip.** A
+  `savedTick` counter (bumped after each auto-save) drives a two-phase flash in
+  `App.svelte`: solid green with the label "Saved" for ~1.5s (hold), then the label
+  flips back as the color eases to the active-tab color over ~0.7s (fade). The tab
+  uses an invisible sizer span so swapping "Settings"↔"Saved" never resizes it.
+- **App-wide no text selection (mirrors `osc`).** `body { user-select: none;
+  -webkit-user-select: none }` (the `-webkit-` prefix is required for WebKit/Wails);
+  `input, textarea` re-enable it so fields stay editable. Note this also makes the
+  checksum/result-preview non-selectable.
+- **Window size persistence + Windows console hiding.** See Platform gotchas: save
+  the Wails OS window size (not the viewport) to avoid per-launch shrink; run every
+  console child through `proc.Hide` so Windows doesn't flash a shell window.
 - Plans of record (newest last): build, polish, ZIP archiving, release packaging,
-  theming+Run controls+hints, and Settings auto-save/password/tool-paths — under
-  `~/.claude/plans/`.
+  theming+Run controls+hints, Settings auto-save/password/tool-paths, and per-run
+  Run controls + Settings "Saved" flash — under `~/.claude/plans/`.

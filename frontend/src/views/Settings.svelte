@@ -257,7 +257,7 @@
       </label>
       <div class="row">
         <input id="psqlpath" bind:value={c.psqlPath} on:change={redetect}
-          placeholder={$env?.psqlPath ? `auto: ${$env.psqlPath}` : 'auto-detect'} />
+          placeholder={$env?.psqlFound ? 'auto-detected' : 'auto-detect (not found)'} />
         <button class="ghost" on:click={() => browseTool('psql')}>Browse…</button>
       </div>
       <!-- svelte-ignore a11y-label-has-associated-control -->

@@ -66,7 +66,11 @@ html, body, #app {
   margin: 0;
   background: var(--bg);
 }
-body { overflow: hidden; }
+/* Disable text/UI selection app-wide (avoids accidental highlighting via mouse
+   drags/touchpad gestures); the -webkit- prefix is required for WebKit/Wails.
+   Editable fields re-enable selection so users can still edit/copy their input. */
+body { overflow: hidden; user-select: none; -webkit-user-select: none; }
+input, textarea { user-select: text; -webkit-user-select: text; }
 
 button {
   font-family: inherit;
@@ -104,6 +108,9 @@ input, select, textarea {
   width: 100%;
 }
 input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+/* Placeholder ("cue") text: muted and dimmed so it reads as a hint, not content
+   (the default --muted was too bright against the dark input background). */
+input::placeholder, textarea::placeholder { color: var(--muted); opacity: 0.5; }
 /* Equal height for text inputs and dropdowns (not checkboxes/radios; textarea auto). */
 input:not([type="checkbox"]):not([type="radio"]), select { height: 38px; }
 textarea { resize: vertical; font-family: var(--mono); line-height: 1.45; }

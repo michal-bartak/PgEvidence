@@ -9,6 +9,8 @@ import (
 	"runtime"
 	"strconv"
 	"time"
+
+	"pgevidence/internal/proc"
 )
 
 // Recorder wraps a running ffmpeg screen-capture process. Recording is
@@ -31,6 +33,7 @@ func StartRecording(outPath string, displayIndex int) (*Recorder, error) {
 		return nil, err
 	}
 	cmd := exec.Command(bin, args...)
+	proc.Hide(cmd)
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return nil, err

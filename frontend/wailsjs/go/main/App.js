@@ -70,6 +70,10 @@ export function OpenRunFolder(arg1) {
   return window['go']['main']['App']['OpenRunFolder'](arg1);
 }
 
+export function OpenScreenRecordingSettings() {
+  return window['go']['main']['App']['OpenScreenRecordingSettings']();
+}
+
 export function PruneRunDir(arg1, arg2) {
   return window['go']['main']['App']['PruneRunDir'](arg1, arg2);
 }
@@ -88,6 +92,10 @@ export function SaveConfig(arg1) {
 
 export function SaveQuery(arg1) {
   return window['go']['main']['App']['SaveQuery'](arg1);
+}
+
+export function SaveWindowSize(arg1, arg2) {
+  return window['go']['main']['App']['SaveWindowSize'](arg1, arg2);
 }
 
 export function SelectFile(arg1) {

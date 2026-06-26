@@ -15,6 +15,8 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"pgevidence/internal/proc"
 )
 
 // Conn carries the non-secret parts of a database connection.
@@ -138,7 +140,9 @@ func Detect() (path string, version string, err error) {
 	if err != nil {
 		return "", "", fmt.Errorf("psql not found on PATH: %w", err)
 	}
-	out, err := exec.Command(path, "--version").Output()
+	cmd := exec.Command(path, "--version")
+	proc.Hide(cmd)
+	out, err := cmd.Output()
 	if err != nil {
 		return path, "", nil
 	}
@@ -195,6 +199,7 @@ func RunToFile(ctx context.Context, conn Conn, sql string, readOnly bool, passwo
 	defer f.Close()
 
 	cmd := exec.CommandContext(ctx, bin, append(args(sql), "-d", conn.connString())...)
+	proc.Hide(cmd)
 	cmd.Env = childEnv(password, readOnly)
 	cmd.Stdout = f
 	var stderr bytes.Buffer
@@ -225,6 +230,7 @@ func Test(ctx context.Context, conn Conn, password string) error {
 		return fmt.Errorf("psql not found on PATH: %w", err)
 	}
 	cmd := exec.CommandContext(ctx, bin, append(args("SELECT 1"), "-d", conn.connString())...)
+	proc.Hide(cmd)
 	cmd.Env = childEnv(password, false)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr

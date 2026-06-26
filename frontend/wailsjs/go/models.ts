@@ -69,6 +69,8 @@ export namespace config {
 	    zipPassword: string;
 	    deleteSourcesAfterZip: boolean;
 	    excludeVideoFromZip: boolean;
+	    windowWidth?: number;
+	    windowHeight?: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new Config(source);
@@ -95,6 +97,8 @@ export namespace config {
 	        this.zipPassword = source["zipPassword"];
 	        this.deleteSourcesAfterZip = source["deleteSourcesAfterZip"];
 	        this.excludeVideoFromZip = source["excludeVideoFromZip"];
+	        this.windowWidth = source["windowWidth"];
+	        this.windowHeight = source["windowHeight"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

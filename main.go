@@ -7,6 +7,17 @@ import (
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
+
+	"pgevidence/internal/config"
+)
+
+// Window sizing: defaults and floor. The persisted size is the OS window size
+// (via Wails WindowGetSize), so save/restore round-trips without shrinking.
+const (
+	defaultWinW = 1200
+	defaultWinH = 820
+	minWinW     = 900
+	minWinH     = 600
 )
 
 //go:embed all:frontend/dist
@@ -26,11 +37,24 @@ func main() {
 	// Create an instance of the app structure
 	app := NewApp()
 
+	// Restore the last window size (floored at the minimum); fall back to default.
+	width, height := defaultWinW, defaultWinH
+	if cfg, err := config.Load(); err == nil {
+		if cfg.WindowWidth >= minWinW {
+			width = cfg.WindowWidth
+		}
+		if cfg.WindowHeight >= minWinH {
+			height = cfg.WindowHeight
+		}
+	}
+
 	// Create application with options
 	err := wails.Run(&options.App{
-		Title:  AppName,
-		Width:  1200,
-		Height: 820,
+		Title:     AppName,
+		Width:     width,
+		Height:    height,
+		MinWidth:  minWinW,
+		MinHeight: minWinH,
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},

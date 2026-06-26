@@ -39,6 +39,8 @@ export function MoveQuery(arg1:string,arg2:number):Promise<Array<store.Query>>;
 
 export function OpenRunFolder(arg1:string):Promise<void>;
 
+export function OpenScreenRecordingSettings():Promise<void>;
+
 export function PruneRunDir(arg1:string,arg2:boolean):Promise<void>;
 
 export function ReplaceAllQueries(arg1:Array<store.Query>):Promise<Array<store.Query>>;
@@ -48,6 +50,8 @@ export function RequestScreenAccess():Promise<boolean>;
 export function SaveConfig(arg1:config.Config):Promise<void>;
 
 export function SaveQuery(arg1:store.Query):Promise<Array<store.Query>>;
+
+export function SaveWindowSize(arg1:number,arg2:number):Promise<void>;
 
 export function SelectFile(arg1:string):Promise<string>;
 

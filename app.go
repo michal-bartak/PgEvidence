@@ -165,6 +165,18 @@ func (a *App) RequestScreenAccess() bool {
 	return capture.RequestScreenAccess()
 }
 
+// OpenScreenRecordingSettings opens the macOS Screen Recording privacy pane.
+// CGRequestScreenCaptureAccess only ever prompts once; once the app is listed
+// (even if the user disabled it), re-requesting is a no-op — so to actually
+// change the grant the user must toggle it here.
+func (a *App) OpenScreenRecordingSettings() error {
+	if runtime.GOOS != "darwin" {
+		return nil
+	}
+	return exec.Command("open",
+		"x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture").Start()
+}
+
 // TestConnection runs `SELECT 1` against the given connection.
 func (a *App) TestConnection(connID string) error {
 	cfg, err := config.Load()
@@ -321,6 +333,19 @@ func (a *App) ArchiveRunAuto(runDir string, excludeVideo bool) (archive.Result, 
 // ZIP archive (and its .pwd). Safe: it refuses if the archive is missing/empty.
 func (a *App) PruneRunDir(runDir string, keepVideo bool) error {
 	return archive.PruneSources(runDir, keepVideo)
+}
+
+// SaveWindowSize persists the current OS window size so it can be restored on
+// next launch. The frontend passes Wails' WindowGetSize (the OS window size, not
+// the webview viewport) — otherwise the window would shrink a little each launch.
+func (a *App) SaveWindowSize(width, height int) error {
+	cfg, err := config.Load()
+	if err != nil {
+		return err
+	}
+	cfg.WindowWidth = width
+	cfg.WindowHeight = height
+	return config.Save(cfg)
 }
 
 // OpenRunFolder reveals a run directory in the OS file manager.

@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { activeTab, cfg, queries, env, runOpts, savedTick } from './stores';
-  import { GetConfig, ListQueries, DetectEnvironment, RequestScreenAccess } from '../wailsjs/go/main/App';
+  import { GetConfig, ListQueries, DetectEnvironment, RequestScreenAccess, OpenScreenRecordingSettings, SaveWindowSize } from '../wailsjs/go/main/App';
+  import { WindowGetSize } from '../wailsjs/runtime/runtime';
   import { applyTheme } from './theme';
   import Queries from './views/Queries.svelte';
   import Run from './views/Run.svelte';
@@ -32,15 +33,37 @@
     }
   });
 
+  // Persist the window size (debounced) so it's restored next launch. Save the
+  // Wails OS window size — NOT window.innerWidth (the viewport excludes the OS
+  // chrome, which would make the window shrink a little on every restart).
+  let resizeTimer: ReturnType<typeof setTimeout>;
+  function onResize() {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      WindowGetSize().then(({ w, h }) => SaveWindowSize(w, h)).catch(() => {});
+    }, 500);
+  }
+  onMount(() => window.addEventListener('resize', onResize));
+  onDestroy(() => { clearTimeout(resizeTimer); window.removeEventListener('resize', onResize); });
+
   // Flash the Settings tab green ("Saved") whenever a settings auto-save lands.
-  let flashing = false;
-  let flashTimer: ReturnType<typeof setTimeout>;
+  // Two phases: 'hold' keeps it solid green with the "Saved" label for a beat,
+  // then 'fade' restores the label and eases the color back to the active color.
+  const HOLD_MS = 1500;
+  const FADE_MS = 700;
+  let flashState: '' | 'hold' | 'fade' = '';
+  let holdTimer: ReturnType<typeof setTimeout>;
+  let fadeTimer: ReturnType<typeof setTimeout>;
   let savedSeen = false;
   savedTick.subscribe(() => {
     if (!savedSeen) { savedSeen = true; return; } // ignore the initial value
-    flashing = true;
-    clearTimeout(flashTimer);
-    flashTimer = setTimeout(() => (flashing = false), 1000);
+    clearTimeout(holdTimer);
+    clearTimeout(fadeTimer);
+    flashState = 'hold';
+    holdTimer = setTimeout(() => {
+      flashState = 'fade';
+      fadeTimer = setTimeout(() => (flashState = ''), FADE_MS);
+    }, HOLD_MS);
   });
 
   const tabs: { id: 'queries' | 'run' | 'settings'; label: string }[] = [
@@ -49,11 +72,14 @@
     { id: 'settings', label: 'Settings' },
   ];
 
-  let screenMsg = '';
   async function grantScreen() {
+    // First launch: this shows the system prompt. Afterwards it's a no-op, so
+    // also open the Screen Recording pane where the grant can be toggled.
     await RequestScreenAccess();
-    screenMsg = `If a system prompt appeared, enable ${$env?.appName ?? 'the app'}, then quit and reopen the app for it to take effect.`;
+    await OpenScreenRecordingSettings();
   }
+  // Temporary, non-persisted dismissal — restored on next app launch.
+  let screenBannerHidden = false;
 </script>
 
 <div class="shell">
@@ -69,10 +95,14 @@
         <button
           class="tab"
           class:active={$activeTab === t.id}
-          class:saved-flash={t.id === 'settings' && flashing}
+          class:flash-hold={t.id === 'settings' && flashState === 'hold'}
+          class:flash-fade={t.id === 'settings' && flashState === 'fade'}
           on:click={() => ($activeTab = t.id)}
         >
-          {t.id === 'settings' && flashing ? 'Saved' : t.label}
+          <!-- Sizer reserves the natural label width so swapping in "Saved"
+               (shorter) doesn't shrink the button. -->
+          <span class="sizer" aria-hidden="true">{t.label}</span>
+          <span class="lbl">{t.id === 'settings' && flashState === 'hold' ? 'Saved' : t.label}</span>
         </button>
       {/each}
     </nav>
@@ -84,13 +114,12 @@
     </div>
   {/if}
 
-  {#if $env && !$env.screenAccess}
+  {#if $env && !$env.screenAccess && !screenBannerHidden}
     <div class="banner warn">
       <strong>macOS may not have granted Screen Recording.</strong>
-      The app still tries to capture; if screenshots fail, grant it here.
-      Ad-hoc-signed builds can need re-granting after each rebuild.
       <button class="bbtn" on:click={grantScreen}>Grant permission…</button>
-      {#if screenMsg}<span class="note">{screenMsg}</span>{/if}
+      <button class="bclose" title="Hide until next launch" aria-label="Hide"
+        on:click={() => (screenBannerHidden = true)}>✕</button>
     </div>
   {/if}
 
@@ -124,11 +153,16 @@
   .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); }
   .ver { font-size: 0.72rem; color: var(--muted); background: var(--bg); border: 1px solid var(--border-strong); border-radius: 10px; padding: 1px 7px; }
   nav { display: flex; gap: 6px; }
-  .tab { background: transparent; }
+  .tab { background: transparent; position: relative; }
   .tab.active { background: var(--accent-2); border-color: var(--accent-2); color: var(--on-accent); }
-  /* Settings save feedback: green immediately, then fade to the active-tab color. */
-  .tab.saved-flash { color: var(--on-accent); animation: savedflash 1s ease-out forwards; }
-  @keyframes savedflash {
+  /* Keep the label centered over a fixed-width sizer so the button never resizes. */
+  .tab .sizer { visibility: hidden; }
+  .tab .lbl { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+  /* Settings save feedback: solid green during the hold, then ease back to the
+     active-tab color while the label flips back to "Settings". */
+  .tab.flash-hold { background: var(--ok); border-color: var(--ok); color: var(--on-accent); }
+  .tab.flash-fade { color: var(--on-accent); animation: savedfade 0.7s ease-out forwards; }
+  @keyframes savedfade {
     0%   { background: var(--ok); border-color: var(--ok); }
     100% { background: var(--accent-2); border-color: var(--accent-2); }
   }
@@ -140,6 +174,10 @@
   .banner .bbtn { padding: 3px 10px; font-size: 0.8rem; border-radius: 6px;
     background: transparent; border: 1px solid #b9a85f; color: #ffe6a3; }
   .banner .bbtn:not(:disabled):hover { background: #ffffff22; border-color: #ffe6a3; color: #fff; }
-  .banner .note { color: #d8c79a; font-size: 0.8rem; }
+  .banner .bclose {
+    margin-left: auto; padding: 2px 8px; font-size: 0.8rem; line-height: 1;
+    border-radius: 6px; background: transparent; border: 1px solid transparent; color: #ffe6a3;
+  }
+  .banner .bclose:not(:disabled):hover { background: #ffffff22; border-color: #ffe6a3; color: #fff; }
   main { flex: 1 1 auto; min-height: 0; overflow: hidden; }
 </style>
