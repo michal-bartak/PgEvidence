@@ -37,5 +37,5 @@ Optionally the whole run is packed into a **ZIP** (optionally password-protected
 PgEvidence requires the PostgreSQL client (`psql`) on the machine running the app.
 :::
 
-Head to [Installation](/Audit-PG-Extractor/installation/) to get started, or
-[Usage](/Audit-PG-Extractor/usage/) for the workflow.
+Head to [Installation](/PgEvidence/installation/) to get started, or
+[Usage](/PgEvidence/usage/) for the workflow.

@@ -4,7 +4,7 @@ description: Download and install PgEvidence on macOS, Windows, or Linux
 ---
 
 Download the latest installer from the
-[Releases page](https://github.com/michal-bartak/Audit-PG-Extractor/releases).
+[Releases page](https://github.com/michal-bartak/PgEvidence/releases).
 
 ## Prerequisite: psql
 

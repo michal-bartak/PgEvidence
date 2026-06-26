@@ -2,11 +2,11 @@ import starlight from '@astrojs/starlight';
 import { defineConfig } from 'astro/config';
 import starlightThemeRapide from 'starlight-theme-rapide';
 
-// GitHub Pages: served at https://michal-bartak.github.io/Audit-PG-Extractor/
+// GitHub Pages: served at https://michal-bartak.github.io/PgEvidence/
 // (base matches the repo name). Update both if the repo is renamed.
 export default defineConfig({
   site: 'https://michal-bartak.github.io',
-  base: '/Audit-PG-Extractor',
+  base: '/PgEvidence',
   integrations: [
     starlight({
       title: 'PgEvidence',
@@ -18,7 +18,7 @@ export default defineConfig({
         alt: 'PgEvidence',
         replacesTitle: false,
       },
-      social: { github: 'https://github.com/michal-bartak/Audit-PG-Extractor' },
+      social: { github: 'https://github.com/michal-bartak/PgEvidence' },
       customCss: ['./src/styles/custom.css'],
       sidebar: [
         { label: 'Home', link: '/' },

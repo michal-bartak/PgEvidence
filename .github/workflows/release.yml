@@ -256,7 +256,7 @@ jobs:
           binary="build/bin/$output"
           pkgname="pgevidence"
           description="Reproducible, checksummed PostgreSQL audit extracts"
-          url="https://github.com/michal-bartak/Audit-PG-Extractor"
+          url="https://github.com/michal-bartak/PgEvidence"
           maintainer="Michal Bartak <michal.bartak@betsys.com>"
 
           # Install packaging tools
@@ -345,7 +345,7 @@ jobs:
             - **macOS:** Open the `.dmg`, drag **PgEvidence** to Applications, then eject. The app is unsigned, so Gatekeeper blocks it on first launch:
               - **Recommended — download with curl** (no quarantine flag is set):
                 ```
-                curl -LJO https://github.com/michal-bartak/Audit-PG-Extractor/releases/download/${{ needs.prepare.outputs.tag }}/pgevidence-${{ needs.prepare.outputs.tag }}-macos-universal.dmg
+                curl -LJO https://github.com/michal-bartak/PgEvidence/releases/download/${{ needs.prepare.outputs.tag }}/pgevidence-${{ needs.prepare.outputs.tag }}-macos-universal.dmg
                 ```
               - **Already downloaded via browser** — run once after dragging to Applications:
                 ```

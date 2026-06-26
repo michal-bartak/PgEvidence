@@ -23,7 +23,7 @@
 
     <Icon Id="AppIcon" SourceFile="$(var.IconPath)" />
     <Property Id="ARPPRODUCTICON" Value="AppIcon" />
-    <Property Id="ARPHELPLINK" Value="https://github.com/michal-bartak/Audit-PG-Extractor" />
+    <Property Id="ARPHELPLINK" Value="https://github.com/michal-bartak/PgEvidence" />
 
     <!-- ── UI ──────────────────────────────────────────────── -->
     <!-- Point to INSTALLFOLDER so the PathEdit shows the full default path -->

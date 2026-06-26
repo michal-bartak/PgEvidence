@@ -18,7 +18,7 @@ Result and checksum (and screenshot) for a query share a common filename stem.
 ## Install
 
 Download the latest installer from the
-[Releases page](https://github.com/michal-bartak/Audit-PG-Extractor/releases):
+[Releases page](https://github.com/michal-bartak/PgEvidence/releases):
 
 - **macOS** — `…-macos-universal.dmg`: open it, drag **PgEvidence** to
   Applications. The app is unsigned, so on first launch either download the DMG via

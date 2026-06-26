@@ -53,7 +53,7 @@ icon:
 	python3 scripts/gen_icon.py
 
 # Docs site (Astro Starlight in docs/). `make docs` serves it locally at
-# http://localhost:4321/Audit-PG-Extractor/ with hot reload.
+# http://localhost:4321/PgEvidence/ with hot reload.
 docs:
 	cd docs && { [ -d node_modules ] || npm install; } && npm run dev
 
