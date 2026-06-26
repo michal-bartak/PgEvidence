@@ -12,7 +12,7 @@ export default defineConfig({
       title: 'PgEvidence',
       description: 'Screenshot, record, and checksum PostgreSQL query results for auditors',
       plugins: [starlightThemeRapide()],
-      favicon: '/appicon.png',
+      favicon: '/favicon.ico',
       logo: {
         src: './src/assets/appicon.png',
         alt: 'PgEvidence',
