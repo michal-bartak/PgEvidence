@@ -124,5 +124,6 @@ label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 4
 .scroll { overflow: auto; }
 
 ::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-thumb { background: #3a506e; border-radius: 6px; }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 6px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-hover); }
 ::-webkit-scrollbar-track { background: transparent; }
