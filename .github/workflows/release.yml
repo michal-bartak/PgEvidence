@@ -332,11 +332,6 @@ jobs:
           draft: ${{ inputs.draft }}
           generate_release_notes: true
           body: |
-            **Requires `psql`** (PostgreSQL client) on the machine running the app:
-            - Linux packages depend on it (auto-installed).
-            - macOS/Windows: install it (Homebrew / Postgres.app / EDB installer); the
-              app also auto-discovers psql in common install locations.
-
             ### Installing
 
             - **macOS:** Open the `.dmg`, drag **PgEvidence** to Applications, then eject. The app is unsigned, so Gatekeeper blocks it on first launch:
