@@ -2,25 +2,40 @@
   import { cfg, env } from '../stores';
   import { config } from '../../wailsjs/go/models';
   import {
-    SaveConfig, SelectOutputDir, TestConnection,
-    SetSessionPassword, HasSessionPassword,
+    SaveConfig, SelectOutputDir, SelectFile, TestConnection, DetectEnvironment,
+    SetSessionPassword, HasSessionPassword, UpdateTheme,
   } from '../../wailsjs/go/main/App';
+  import { applyTheme } from '../theme';
+  import Hint from '../components/Hint.svelte';
 
   let password = '';
   let pwStored = false;
   let testMsg = '';
-  let testOk = false;
-  let saveMsg = '';
+  let testStatus: '' | 'testing' | 'ok' | 'error' = '';
+  let saved = false;
   let busy = false;
+  let saveTimer: any;
+  let prevConnId = '';
 
   $: c = $cfg;
   $: connIdx = c ? c.connections.findIndex((x) => x.id === c.selectedConnectionId) : -1;
   $: conn = c && connIdx >= 0 ? c.connections[connIdx] : null;
   $: displays = $env?.numDisplays ?? 1;
 
-  $: if (conn) refreshPw(conn.id);
+  // Reset/refresh the password field only when the selected connection changes,
+  // so unrelated config edits (theme, etc.) don't clear what the user typed.
+  $: if (conn && conn.id !== prevConnId) { prevConnId = conn.id; password = ''; refreshPw(conn.id); }
   async function refreshPw(id: string) {
     try { pwStored = await HasSessionPassword(id); } catch {}
+  }
+
+  // Debounced auto-save: every field change persists the config (no Save button).
+  function autoSave() {
+    if (!c) return;
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(async () => {
+      try { await SaveConfig(c!); saved = true; setTimeout(() => (saved = false), 1200); } catch {}
+    }, 400);
   }
 
   function addConnection() {
@@ -32,6 +47,7 @@
     })];
     c.selectedConnectionId = id;
     $cfg = c;
+    autoSave();
   }
 
   function removeConnection() {
@@ -39,60 +55,67 @@
     c.connections = c.connections.filter((x) => x.id !== conn!.id);
     c.selectedConnectionId = c.connections[0].id;
     $cfg = c;
+    autoSave();
   }
 
   async function browse() {
     try {
       const dir = await SelectOutputDir();
-      if (dir && c) { c.outputDir = dir; $cfg = c; }
-    } catch (e) { saveMsg = String(e); }
+      if (dir && c) { c.outputDir = dir; $cfg = c; autoSave(); }
+    } catch {}
   }
 
-  async function setPassword() {
+  // Apply the session password on edit (blur/Enter); empty clears it.
+  async function applyPassword() {
     if (!conn) return;
     await SetSessionPassword(conn.id, password);
-    password = '';
-    await refreshPw(conn.id);
-  }
-  async function clearPassword() {
-    if (!conn) return;
-    await SetSessionPassword(conn.id, '');
     await refreshPw(conn.id);
   }
 
-  async function save() {
+  async function browseTool(which: 'psql' | 'ffmpeg') {
     if (!c) return;
-    busy = true; saveMsg = '';
-    try { await SaveConfig(c); saveMsg = 'Saved.'; }
-    catch (e) { saveMsg = String(e); }
-    busy = false;
-    setTimeout(() => (saveMsg = ''), 2500);
+    try {
+      const p = await SelectFile(which === 'psql' ? 'Select the psql executable' : 'Select the ffmpeg executable');
+      if (!p) return;
+      if (which === 'psql') c.psqlPath = p; else c.ffmpegPath = p;
+      $cfg = c;
+      await redetect();
+    } catch {}
+  }
+
+  async function redetect() {
+    if (!c) return;
+    try { await SaveConfig(c); $env = await DetectEnvironment(); saved = true; setTimeout(() => (saved = false), 1200); } catch {}
+  }
+
+  function setTheme(t: string) {
+    if (!c) return;
+    c.theme = t;
+    $cfg = c;
+    applyTheme(t);
+    UpdateTheme(t).catch(() => {});
   }
 
   async function test() {
     if (!conn) return;
-    busy = true; testMsg = 'Testing…'; testOk = false;
+    busy = true; testStatus = 'testing'; testMsg = '';
     try {
       await SaveConfig(c!); // persist so the backend tests the current values
       await TestConnection(conn.id);
-      testOk = true; testMsg = 'Connection OK.';
-    } catch (e) { testOk = false; testMsg = String(e); }
+      testStatus = 'ok'; testMsg = 'Connection OK.';
+    } catch (e) { testStatus = 'error'; testMsg = String(e); }
     busy = false;
   }
 </script>
 
 {#if c}
-<div class="wrap scroll">
-  <div class="savebar">
-    <button class="primary" on:click={save} disabled={busy}>Save settings</button>
-    {#if saveMsg}<span class="muted" style="margin-left:4px;">{saveMsg}</span>{/if}
-    <span class="muted" style="margin-left:auto; font-size:0.8rem;">Starting a run also saves the current settings.</span>
-  </div>
-
+<!-- svelte-ignore a11y-no-static-element-interactions -->
+<div class="wrap scroll" on:input={autoSave} on:change={autoSave}>
+  <div class="savedind" class:show={saved}>Saved ✓</div>
   <div class="content">
   <div class="grid">
     <div class="card">
-      <h3>Database connection</h3>
+      <h3>Database connections</h3>
       <div class="row" style="align-items:flex-end;">
         <div class="col">
           <label for="connsel">Active connection</label>
@@ -123,18 +146,17 @@
             {/each}
           </select>
 
-          <div class="pw card" style="margin-top:14px; background:var(--bg-2);">
-            <!-- svelte-ignore a11y-label-has-associated-control -->
-            <label>Session password (held in memory only — never written to disk)</label>
-            <div class="row">
-              <input type="password" bind:value={password} placeholder={pwStored ? '•••••••• (set)' : "leave blank to use ~/.pgpass"} />
-              <button on:click={setPassword} disabled={!password}>Set</button>
-              <button class="ghost" on:click={clearPassword} disabled={!pwStored}>Clear</button>
-            </div>
-            <div class="row" style="margin-top:10px; align-items:center;">
-              <button on:click={test} disabled={busy}>Test connection</button>
-              {#if testMsg}<span class:ok={testOk} class:err={!testOk} class="testmsg">{testMsg}</span>{/if}
-            </div>
+          <!-- svelte-ignore a11y-label-has-associated-control -->
+          <label style="margin-top:12px;">Session password
+            <Hint text="Held in memory for this session only — never written to disk. Leave blank to use ~/.pgpass. Applied when you leave the field; empty it to clear." />
+          </label>
+          <div class="row" style="align-items:center;">
+            <input type="password" bind:value={password} on:change={applyPassword}
+              style="max-width:320px;" placeholder={pwStored ? '•••••••• (set)' : 'leave blank to use ~/.pgpass'} />
+            <button class="ghost" on:click={test} disabled={busy}>Test connection</button>
+            {#if testStatus === 'testing'}<span class="muted" style="font-size:0.8rem;">testing…</span>
+            {:else if testStatus === 'ok'}<Hint label="✓" tone="ok" text={testMsg} />
+            {:else if testStatus === 'error'}<Hint label="✗" tone="err" text={testMsg} />{/if}
           </div>
         </div>
       {/if}
@@ -181,7 +203,10 @@
       <label class="toggle"><input type="checkbox" bind:checked={c.zip} /> Create a ZIP archive after each run</label>
 
       <div style="margin-top:14px;" class:disabled-block={!c.zip}>
-        <label for="zipmode">Password protection</label>
+        <!-- svelte-ignore a11y-label-has-associated-control -->
+        <label for="zipmode">Password protection
+          <Hint text="Encryption uses legacy ZipCrypto — opens with macOS unzip, Windows Explorer and 7-Zip, but is cryptographically weak." />
+        </label>
         <select id="zipmode" bind:value={c.zipPasswordMode} disabled={!c.zip}>
           <option value="none">None — plain ZIP</option>
           <option value="explicit">Explicit password</option>
@@ -189,35 +214,59 @@
         </select>
 
         {#if c.zipPasswordMode === 'explicit'}
-          <label for="zippw" style="margin-top:12px;">Explicit ZIP password</label>
+          <!-- svelte-ignore a11y-label-has-associated-control -->
+          <label for="zippw" style="margin-top:12px;">Explicit ZIP password
+            <Hint text="Stored in plaintext in config.json. Leave blank to be prompted for a password after each run." />
+          </label>
           <input id="zippw" type="password" bind:value={c.zipPassword} disabled={!c.zip}
             placeholder="leave blank to be prompted at run time" />
-          <div class="muted" style="font-size:0.78rem; margin-top:6px;">
-            Stored in plaintext in config.json. Leave blank and you'll be asked for a
-            password after each run.
-          </div>
         {:else if c.zipPasswordMode === 'auto'}
           <div class="muted" style="font-size:0.78rem; margin-top:10px;">
-            A random password is generated per run and saved next to the archive as
-            <span class="mono">&lt;name&gt;.zip.pwd</span>.
+            A random password is saved next to the archive as <span class="mono">&lt;name&gt;.zip.pwd</span>.
           </div>
         {/if}
-
-        <div class="muted" style="font-size:0.78rem; margin-top:10px;">
-          ZIP uses legacy ZipCrypto encryption (opens with macOS <span class="mono">unzip</span>,
-          Windows Explorer, 7-Zip) — compatible but cryptographically weak.
-        </div>
 
         <label class="toggle" style="margin-top:14px;">
           <input type="checkbox" bind:checked={c.deleteSourcesAfterZip} disabled={!c.zip} />
           Delete source files after a successful ZIP (keep only the archive)
+          <Hint text="After the archive is confirmed, the loose run files are removed, leaving only the .zip (and .pwd). Only runs when the archive exists." />
         </label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Appearance</h3>
+      <!-- svelte-ignore a11y-label-has-associated-control -->
+      <label>Theme</label>
+      <div class="seg">
+        {#each [['system', 'System'], ['light', 'Light'], ['dark', 'Dark']] as opt}
+          <button class="segbtn" class:active={(c.theme || 'system') === opt[0]}
+            on:click={() => setTheme(opt[0])}>{opt[1]}</button>
+        {/each}
       </div>
     </div>
 
     <div class="card env">
       <h3>Environment</h3>
-      <table>
+      <!-- svelte-ignore a11y-label-has-associated-control -->
+      <label for="psqlpath">psql path
+        <Hint text="Leave blank to auto-detect (PATH + common install dirs). Set a custom path if psql isn't found." />
+      </label>
+      <div class="row">
+        <input id="psqlpath" bind:value={c.psqlPath} on:change={redetect}
+          placeholder={$env?.psqlPath ? `auto: ${$env.psqlPath}` : 'auto-detect'} />
+        <button class="ghost" on:click={() => browseTool('psql')}>Browse…</button>
+      </div>
+      <!-- svelte-ignore a11y-label-has-associated-control -->
+      <label for="ffpath" style="margin-top:10px;">ffmpeg path
+        <Hint text="Leave blank to auto-detect. Only needed for video recording." />
+      </label>
+      <div class="row">
+        <input id="ffpath" bind:value={c.ffmpegPath} on:change={redetect}
+          placeholder={$env?.ffmpegFound ? 'auto-detected' : 'auto-detect (not installed)'} />
+        <button class="ghost" on:click={() => browseTool('ffmpeg')}>Browse…</button>
+      </div>
+      <table style="margin-top:14px;">
         <tr><td>App version</td><td>{$env?.appVersion}</td></tr>
         <tr><td>psql</td><td>{$env?.psqlFound ? $env.psqlVersion : 'not found'}</td></tr>
         <tr><td>psql path</td><td class="mono">{$env?.psqlPath || '—'}</td></tr>
@@ -235,12 +284,14 @@
 <style>
   .wrap { height: 100%; padding: 0; }
   .content { padding: 16px; }
-  .savebar {
-    position: sticky; top: 0; z-index: 5;
-    display: flex; align-items: center; gap: 12px;
-    padding: 12px 16px; background: var(--bg-2);
-    border-bottom: 1px solid var(--border-strong);
+  .savedind {
+    position: fixed; top: 12px; right: 18px; z-index: 20;
+    background: var(--accent-2); color: var(--on-accent);
+    padding: 4px 12px; border-radius: 16px; font-size: 0.8rem;
+    opacity: 0; transform: translateY(-6px);
+    transition: opacity 0.2s, transform 0.2s; pointer-events: none;
   }
+  .savedind.show { opacity: 1; transform: translateY(0); }
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
   .env { grid-column: 1 / -1; }
   h3 { margin: 0 0 12px; }
@@ -249,9 +300,12 @@
   .toggle input { width: auto; }
   .toggle.disabled { opacity: 0.55; }
   .disabled-block { opacity: 0.5; }
-  .testmsg { font-size: 0.85rem; }
-  .testmsg.ok { color: var(--ok); }
-  .testmsg.err { color: var(--err); }
+  .seg { display: inline-flex; border: 1px solid var(--border-strong); border-radius: 8px; overflow: hidden; }
+  .segbtn { border: none; border-radius: 0; background: transparent; padding: 7px 16px; }
+  .segbtn:not(:disabled):hover { background: var(--btn-hover); }
+  .segbtn + .segbtn { border-left: 1px solid var(--border-strong); }
+  .segbtn.active { background: var(--accent-2); color: var(--on-accent); }
+  .segbtn.active:not(:disabled):hover { background: var(--accent-hover); }
   table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
   td { padding: 4px 8px; border-bottom: 1px solid var(--border-strong); vertical-align: top; }
   td:first-child { color: var(--muted); width: 110px; }

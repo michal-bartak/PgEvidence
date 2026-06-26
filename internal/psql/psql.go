@@ -55,10 +55,19 @@ type Result struct {
 	Duration time.Duration
 }
 
-// binary resolves the psql executable. It first consults PATH, then falls back
-// to well-known install locations — necessary on macOS, where apps launched from
+// configuredPath is an optional user-set psql path (from config); empty = auto.
+var configuredPath string
+
+// SetPath sets a user override for the psql binary. Empty restores auto-detection.
+func SetPath(p string) { configuredPath = p }
+
+// binary resolves the psql executable: an explicit user override first, then PATH,
+// then well-known install locations — necessary on macOS, where apps launched from
 // Finder inherit only a minimal PATH that excludes Homebrew/Postgres.app/EDB dirs.
 func binary() (string, error) {
+	if configuredPath != "" && isExecutable(configuredPath) {
+		return configuredPath, nil
+	}
 	if p, err := exec.LookPath("psql"); err == nil {
 		return p, nil
 	}

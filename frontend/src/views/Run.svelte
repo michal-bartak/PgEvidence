@@ -5,6 +5,7 @@
   import { EventsOn } from '../../wailsjs/runtime/runtime';
   import { StartRun, CancelRun, OpenRunFolder, SaveConfig, ArchiveRun, ArchiveRunAuto, PruneRunDir } from '../../wailsjs/go/main/App';
   import type { archive } from '../../wailsjs/go/models';
+  import Hint from '../components/Hint.svelte';
 
   let running = false;
   let total = 0;
@@ -115,22 +116,39 @@
   }
   async function cancel() { try { await CancelRun(); } catch {} }
   async function openFolder() { if (done?.runDir) { try { await OpenRunFolder(done.runDir); } catch {} } }
+
+  // Run-tab controls mutate the shared cfg store and persist immediately, so the
+  // Settings page (bound to the same store) reflects them and they survive restart.
+  async function persistCfg() { if ($cfg) { try { await SaveConfig($cfg); } catch {} } }
+  function toggleScreenshots() { if (!$cfg) return; $cfg.screenshots = !$cfg.screenshots; $cfg = $cfg; persistCfg(); }
+  function toggleVideo() { if (!$cfg || !$env?.ffmpegFound) return; $cfg.video = !$cfg.video; $cfg = $cfg; persistCfg(); }
 </script>
 
 <div class="wrap">
   <div class="bar">
     <div class="ctx">
-      <span class="chip">{conn ? conn.name : 'no connection'}</span>
+      {#if $cfg}
+        <select class="connsel" bind:value={$cfg.selectedConnectionId} on:change={persistCfg} disabled={running}>
+          {#each $cfg.connections as cn}<option value={cn.id}>{cn.name}</option>{/each}
+        </select>
+      {/if}
       {#if $cfg?.enforceReadOnly}<span class="chip ro">read-only</span>{/if}
-      {#if $cfg?.screenshots}<span class="chip">screenshots</span>{/if}
-      {#if $cfg?.video && $env?.ffmpegFound}<span class="chip">video</span>{/if}
-      <span class="chip">{enabled.length} quer{enabled.length === 1 ? 'y' : 'ies'}</span>
+      <button class="toggle" class:on={$cfg?.screenshots} on:click={toggleScreenshots} disabled={running}>
+        Screenshots: {$cfg?.screenshots ? 'on' : 'off'}
+      </button>
+      <span class="vidwrap" title={!$env?.ffmpegFound ? 'Video recording needs ffmpeg installed on this machine.' : ''}>
+        <button class="toggle" class:on={$cfg?.video && $env?.ffmpegFound}
+          on:click={toggleVideo} disabled={running || !$env?.ffmpegFound}>
+          Video: {$cfg?.video && $env?.ffmpegFound ? 'on' : 'off'}
+        </button>
+      </span>
     </div>
     <div class="spacer"></div>
     {#if running}
       <span class="progress">Query {current?.index ?? '–'} / {total}</span>
       <button class="danger" on:click={cancel}>Cancel run</button>
     {:else}
+      <span class="qcount">{enabled.length} of {$queries.length} enabled</span>
       <button class="primary" on:click={start} disabled={!canStart}>▶ Start run</button>
     {/if}
   </div>
@@ -145,8 +163,8 @@
         No enabled queries. Add or enable queries on the Queries tab.
       {:else}
         Ready to run <strong>{enabled.length}</strong> quer{enabled.length === 1 ? 'y' : 'ies'} against
-        <strong>{conn?.name}</strong>. Each result is written as CSV with a SHA-256 checksum, shown here for
-        {$cfg?.dwellSeconds}s, and captured as a full-screen screenshot.
+        <strong>{conn?.name}</strong>.
+        <Hint text={`Each query runs read-only via psql, is saved as CSV with a SHA-256 checksum, shown on screen for ${$cfg?.dwellSeconds}s, and captured as a full-screen screenshot (with the OS clock as proof-of-time).`} />
       {/if}
     </div>
   {/if}
@@ -259,10 +277,16 @@
 <style>
   .wrap { height: 100%; padding: 16px; display: flex; flex-direction: column; gap: 14px; overflow: hidden; }
   .bar { display: flex; align-items: center; gap: 10px; }
-  .ctx { display: flex; gap: 6px; flex-wrap: wrap; }
+  .ctx { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
   .chip { background: var(--bg-3); border: 1px solid var(--border-strong); border-radius: 20px; padding: 3px 11px; font-size: 0.78rem; }
   .chip.ro { border-color: #3a5a3a; color: var(--ok); }
   .progress { font-size: 0.9rem; color: var(--muted); }
+  .qcount { font-size: 0.85rem; color: var(--muted); }
+  .connsel { width: auto; height: 30px; padding: 0 8px; font-size: 0.85rem; }
+  .vidwrap { display: inline-flex; }
+  .toggle { padding: 3px 11px; font-size: 0.78rem; border-radius: 20px; }
+  .toggle.on { background: var(--accent-2); border-color: var(--accent-2); color: var(--on-accent); }
+  .toggle.on:not(:disabled):hover { background: var(--accent-hover); border-color: var(--accent-hover); }
   .placeholder { padding: 32px; text-align: center; color: var(--muted); line-height: 1.6; }
   .stage { display: flex; flex-direction: column; gap: 14px; flex: 1 1 auto; min-height: 0; }
   .qhead { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
@@ -271,7 +295,7 @@
   .hold { margin-left: auto; color: var(--warn); font-size: 0.85rem; }
   .sql {
     margin: 0; font-family: var(--mono); font-size: 1rem; line-height: 1.5;
-    background: #0d1626; border: 1px solid var(--border-strong); border-radius: 8px;
+    background: var(--code-bg); border: 1px solid var(--border-strong); border-radius: 8px;
     padding: 14px; white-space: pre-wrap; word-break: break-word; max-height: 220px; overflow: auto;
   }
   .checksum { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; background: var(--bg-2); border-radius: 8px; padding: 10px 14px; }

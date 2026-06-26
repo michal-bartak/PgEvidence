@@ -31,6 +31,8 @@ export function ImportQueries(arg1:string):Promise<Array<store.Query>>;
 
 export function IsRunning():Promise<boolean>;
 
+export function IsSystemDark():Promise<boolean>;
+
 export function ListQueries():Promise<Array<store.Query>>;
 
 export function MoveQuery(arg1:string,arg2:number):Promise<Array<store.Query>>;
@@ -47,6 +49,8 @@ export function SaveConfig(arg1:config.Config):Promise<void>;
 
 export function SaveQuery(arg1:store.Query):Promise<Array<store.Query>>;
 
+export function SelectFile(arg1:string):Promise<string>;
+
 export function SelectOutputDir():Promise<string>;
 
 export function SetSessionPassword(arg1:string,arg2:string):Promise<void>;
@@ -54,3 +58,5 @@ export function SetSessionPassword(arg1:string,arg2:string):Promise<void>;
 export function StartRun():Promise<void>;
 
 export function TestConnection(arg1:string):Promise<void>;
+
+export function UpdateTheme(arg1:string):Promise<void>;

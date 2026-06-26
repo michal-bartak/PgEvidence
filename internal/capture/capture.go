@@ -117,9 +117,21 @@ func isBlank(img *image.RGBA) bool {
 	return true
 }
 
+// configuredFFmpeg is an optional user-set ffmpeg path (from config); empty = auto.
+var configuredFFmpeg string
+
+// SetFFmpegPath sets a user override for the ffmpeg binary. Empty restores auto.
+func SetFFmpegPath(p string) { configuredFFmpeg = p }
+
 // FFmpegPath returns the ffmpeg binary path and whether it was found. It checks
-// PATH then common install dirs (macOS GUI apps get only a minimal PATH).
+// a user override first, then PATH, then common install dirs (macOS GUI apps get
+// only a minimal PATH).
 func FFmpegPath() (string, bool) {
+	if configuredFFmpeg != "" {
+		if info, err := os.Stat(configuredFFmpeg); err == nil && !info.IsDir() {
+			return configuredFFmpeg, true
+		}
+	}
 	if p, err := exec.LookPath("ffmpeg"); err == nil {
 		return p, true
 	}

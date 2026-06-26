@@ -60,6 +60,9 @@ export namespace config {
 	    video: boolean;
 	    monitorIndex: number;
 	    stopOnError: boolean;
+	    theme: string;
+	    psqlPath: string;
+	    ffmpegPath: string;
 	    saveQuerySQL: boolean;
 	    zip: boolean;
 	    zipPasswordMode: string;
@@ -82,6 +85,9 @@ export namespace config {
 	        this.video = source["video"];
 	        this.monitorIndex = source["monitorIndex"];
 	        this.stopOnError = source["stopOnError"];
+	        this.theme = source["theme"];
+	        this.psqlPath = source["psqlPath"];
+	        this.ffmpegPath = source["ffmpegPath"];
 	        this.saveQuerySQL = source["saveQuerySQL"];
 	        this.zip = source["zip"];
 	        this.zipPasswordMode = source["zipPasswordMode"];

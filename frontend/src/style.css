@@ -6,6 +6,7 @@
 }
 
 :root {
+  color-scheme: dark;
   --bg: #1b2636;
   --bg-2: #223047;
   --bg-3: #2b3c57;
@@ -18,10 +19,44 @@
   --ok: #4cd47a;
   --err: #ff6b6b;
   --warn: #ffcf5c;
+  --code-bg: #0d1626;
+  --btn-hover: #34466e;
+  --border-hover: #50688f;
+  --accent-hover: #4d9fff;
+  --on-accent: #ffffff;
+  --danger: #ff9a9a;
+  --danger-border: #7a3a3a;
+  --danger-hover-bg: #cf3b30;
   --mono: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
   font-family: Nunito, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: 15px;
   color: var(--text);
+}
+
+/* Light palette — color-scheme makes native controls (the connection <select>
+   popup, scrollbars, inputs) render light too. data-theme="dark" uses :root. */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f5f7fa;
+  --bg-2: #eceff4;
+  --bg-3: #e1e7f0;
+  --panel: #ffffff;
+  --border-strong: #c3cdda;
+  --text: #1a2433;
+  --muted: #5b6b82;
+  --accent: #2f6fd0;
+  --accent-2: #2f6fd0;
+  --ok: #1f9d54;
+  --err: #c0392b;
+  --warn: #b8860b;
+  --code-bg: #eef2f8;
+  --btn-hover: #dde4ee;
+  --border-hover: #aab6c8;
+  --accent-hover: #2861bd;
+  --on-accent: #ffffff;
+  --danger: #c0392b;
+  --danger-border: #e3b0ac;
+  --danger-hover-bg: #c0392b;
 }
 
 * { box-sizing: border-box; }
@@ -42,15 +77,20 @@ button {
   border-radius: 6px;
   padding: 7px 14px;
   cursor: pointer;
-  transition: background 0.12s, border-color 0.12s;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
 }
-button:hover { background: #34466e; }
+/* Hover only when enabled, so disabled buttons never react. */
+button:not(:disabled):hover { background: var(--btn-hover); border-color: var(--border-hover); }
 button:disabled { opacity: 0.45; cursor: not-allowed; }
-button.primary { background: var(--accent-2); border-color: var(--accent); }
-button.primary:hover { background: var(--accent); }
-button.danger { border-color: #6b3030; color: #ffb0b0; }
-button.danger:hover { background: #5a2a2a; }
-button.ghost { background: transparent; }
+
+button.primary { background: var(--accent-2); border-color: var(--accent-2); color: var(--on-accent); }
+button.primary:not(:disabled):hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+button.ghost { background: transparent; border-color: var(--border-strong); }
+button.ghost:not(:disabled):hover { background: var(--btn-hover); border-color: var(--border-hover); }
+
+button.danger { background: transparent; border-color: var(--danger-border); color: var(--danger); }
+button.danger:not(:disabled):hover { background: var(--danger-hover-bg); border-color: var(--danger-hover-bg); color: var(--on-accent); }
 
 input, select, textarea {
   font-family: inherit;
@@ -64,6 +104,8 @@ input, select, textarea {
   width: 100%;
 }
 input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+/* Equal height for text inputs and dropdowns (not checkboxes/radios; textarea auto). */
+input:not([type="checkbox"]):not([type="radio"]), select { height: 38px; }
 textarea { resize: vertical; font-family: var(--mono); line-height: 1.45; }
 label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 4px; }
 

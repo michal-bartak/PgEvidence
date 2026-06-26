@@ -34,6 +34,9 @@ type Config struct {
 	Video                bool         `json:"video"`
 	MonitorIndex         int          `json:"monitorIndex"`
 	StopOnError          bool         `json:"stopOnError"`
+	Theme                string       `json:"theme"`        // "system" | "light" | "dark"
+	PsqlPath             string       `json:"psqlPath"`     // override; empty = auto-detect
+	FfmpegPath           string       `json:"ffmpegPath"`   // override; empty = auto-detect
 	SaveQuerySQL         bool         `json:"saveQuerySQL"` // write NNNN_slug.sql per query
 	Zip                  bool         `json:"zip"`
 	ZipPasswordMode      string       `json:"zipPasswordMode"` // "none" | "explicit" | "auto"
@@ -91,6 +94,7 @@ func Default() Config {
 		Video:                false,
 		MonitorIndex:         0,
 		StopOnError:          false,
+		Theme:                 "system",
 		SaveQuerySQL:          true,
 		Zip:                   true,
 		ZipPasswordMode:       "none",

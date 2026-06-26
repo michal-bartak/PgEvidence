@@ -54,6 +54,10 @@ export function IsRunning() {
   return window['go']['main']['App']['IsRunning']();
 }
 
+export function IsSystemDark() {
+  return window['go']['main']['App']['IsSystemDark']();
+}
+
 export function ListQueries() {
   return window['go']['main']['App']['ListQueries']();
 }
@@ -86,6 +90,10 @@ export function SaveQuery(arg1) {
   return window['go']['main']['App']['SaveQuery'](arg1);
 }
 
+export function SelectFile(arg1) {
+  return window['go']['main']['App']['SelectFile'](arg1);
+}
+
 export function SelectOutputDir() {
   return window['go']['main']['App']['SelectOutputDir']();
 }
@@ -100,4 +108,8 @@ export function StartRun() {
 
 export function TestConnection(arg1) {
   return window['go']['main']['App']['TestConnection'](arg1);
+}
+
+export function UpdateTheme(arg1) {
+  return window['go']['main']['App']['UpdateTheme'](arg1);
 }

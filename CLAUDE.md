@@ -69,7 +69,9 @@ internal/archive/            ZIP packaging (yeka/zip, ZipCrypto); Create/Generat
 internal/runner/             Orchestrates the run: loop, run:* events, dwell, screenshot, manifest
 frontend/src/App.svelte      Shell: tabs (Queries/Run/Settings), loads env+config+queries on mount
 frontend/src/stores.ts       Svelte stores (cfg, queries, env, activeTab) + event payload types
+frontend/src/theme.ts        applyTheme(system|light|dark): sets <html data-theme>; Linux uses IsSystemDark
 frontend/src/views/          Queries.svelte, Run.svelte, Settings.svelte
+frontend/src/components/      Hint.svelte (fixed-positioned "?" hover popover)
 frontend/wailsjs/            GENERATED bindings — never hand-edit
 ```
 
@@ -260,9 +262,43 @@ decision is made or reversed.
   dist` swaps the complete `.icns` into the bundle, re-signs, and re-registers
   with Launch Services. (Same issue was hit and fixed in the `osc` project.)
 
+- **Theming = `data-theme` + CSS vars (mirrors `osc`).** `config.Theme`
+  (system/light/dark); `theme.ts` sets `<html data-theme>`, resolving `system` via
+  `matchMedia` (macOS/Windows) or the Go `IsSystemDark()` gsettings/KDE probe +5s
+  poll on Linux (WebKitGTK ignores `prefers-color-scheme`). `color-scheme` per block
+  themes native controls. `App.svelte` carries the dark default in `:root`.
+- **Run-tab controls write the shared `cfg` store + persist.** Connection dropdown
+  and screenshots/video toggles mutate `$cfg` + `SaveConfig`, so Settings (same
+  store) stays in sync. Query count lives by the Start button (removed from the tab).
+- **Help text behind `Hint` "?" popovers.** Verbose notes (Run idle, ZIP/archive,
+  save-on-run, session password) collapsed into hover/focus popovers.
+- **Settings auto-save (no Save button).** `on:input`/`on:change` on the settings
+  container debounce-save the whole config (the `c = $cfg` object is mutated in
+  place, so `SaveConfig($cfg)` writes current values); programmatic mutations
+  (add/remove connection, browse) call `autoSave()` too. A transient "Saved ✓" chip
+  gives feedback. Run-start `SaveConfig` stays as a safety net.
+- **Session password applied on edit (no Set/Clear).** The password field calls
+  `SetSessionPassword` on `change` (blur/Enter); empty clears it. Reset/refresh only
+  when the *selected connection id* changes (`prevConnId` guard) so unrelated config
+  edits don't wipe a typed password. Field is a normal partial-width input (unframed).
+- **Editable psql/ffmpeg paths.** `config.PsqlPath`/`FfmpegPath` (blank = auto).
+  `psql.SetPath`/`capture.SetFFmpegPath` package overrides, applied via
+  `app.applyToolPaths(cfg)` at startup/SaveConfig/StartRun/TestConnection/
+  DetectEnvironment. Resolution order: override (if executable) → PATH → common dirs.
+  Settings has Browse (`SelectFile` → OpenFileDialog) + auto-detect placeholder.
+- **One consistent button system (CSS vars per theme).** primary/active = filled
+  accent (`--on-accent` text); default = filled `--bg-3`; ghost & inactive tabs =
+  outline (transparent + `--border-strong`); danger = red outline → solid red on
+  hover. Hover only via `:not(:disabled):hover` (disabled never react). Native-control
+  parity via `color-scheme`; inputs/selects share an explicit height (checkboxes/
+  radios excluded so list rows stay compact).
+- **WebKit autocapitalize/autocorrect disabled.** WKWebView capitalizes the first
+  letter of text inputs by default — wrong for SQL/hosts/paths. Turned off on
+  `<body>` and via a `focusin` handler in `main.ts` (covers dynamically added fields).
 - **Release pipeline mirrors `osc`.** CI builds DMG (macOS), WiX MSI (Windows),
   deb+rpm (Linux via fpm) on a `vX.Y.Z` tag. WiX MSI chosen over NSIS; Linux packages
   hard-depend on the Postgres client (the app needs `psql`). Ships unsigned. Fresh MSI
   UpgradeCode GUID (never reuse osc's). See the Release / packaging section above.
-- Plans of record: `~/.claude/plans/resilient-toasting-lighthouse.md` (build),
-  `~/.claude/plans/1-store-your-memory-woolly-star.md` (polish pass).
+- Plans of record (newest last): build, polish, ZIP archiving, release packaging,
+  theming+Run controls+hints, and Settings auto-save/password/tool-paths — under
+  `~/.claude/plans/`.

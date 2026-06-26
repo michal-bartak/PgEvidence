@@ -36,6 +36,15 @@ func NewApp() *App {
 
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	if cfg, err := config.Load(); err == nil {
+		applyToolPaths(cfg)
+	}
+}
+
+// applyToolPaths pushes the configured psql/ffmpeg overrides into the resolvers.
+func applyToolPaths(cfg config.Config) {
+	psql.SetPath(cfg.PsqlPath)
+	capture.SetFFmpegPath(cfg.FfmpegPath)
 }
 
 // --- runner.UI implementation -------------------------------------------------
@@ -55,7 +64,20 @@ func (a *App) BringToFront() {
 
 func (a *App) GetConfig() (config.Config, error) { return config.Load() }
 
-func (a *App) SaveConfig(cfg config.Config) error { return config.Save(cfg) }
+func (a *App) SaveConfig(cfg config.Config) error {
+	applyToolPaths(cfg)
+	return config.Save(cfg)
+}
+
+// UpdateTheme persists only the theme field without disturbing other settings.
+func (a *App) UpdateTheme(theme string) error {
+	cfg, err := config.Load()
+	if err != nil {
+		return err
+	}
+	cfg.Theme = theme
+	return config.Save(cfg)
+}
 
 // --- query management ---------------------------------------------------------
 
@@ -115,6 +137,9 @@ type EnvInfo struct {
 }
 
 func (a *App) DetectEnvironment() EnvInfo {
+	if cfg, err := config.Load(); err == nil {
+		applyToolPaths(cfg) // reflect any custom psql/ffmpeg path in detection
+	}
 	info := EnvInfo{
 		FFmpegFound:  capture.FFmpegAvailable(),
 		NumDisplays:  capture.NumDisplays(),
@@ -144,6 +169,7 @@ func (a *App) TestConnection(connID string) error {
 	if err != nil {
 		return err
 	}
+	applyToolPaths(cfg)
 	c, ok := cfg.FindConnection(connID)
 	if !ok {
 		return fmt.Errorf("connection %q not found", connID)
@@ -175,6 +201,7 @@ func (a *App) StartRun() error {
 	if err != nil {
 		return err
 	}
+	applyToolPaths(cfg)
 	c, ok := cfg.FindConnection(cfg.SelectedConnectionID)
 	if !ok {
 		return fmt.Errorf("no connection selected")
@@ -241,6 +268,11 @@ func (a *App) SelectOutputDir() (string, error) {
 	return wruntime.OpenDirectoryDialog(a.ctx, wruntime.OpenDialogOptions{
 		Title: "Choose output folder for audit extracts",
 	})
+}
+
+// SelectFile opens a native file picker (for choosing a psql/ffmpeg binary).
+func (a *App) SelectFile(title string) (string, error) {
+	return wruntime.OpenFileDialog(a.ctx, wruntime.OpenDialogOptions{Title: title})
 }
 
 // ArchiveRun zips the run folder into <runDir>/<name>.zip. A non-empty password

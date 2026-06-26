@@ -92,10 +92,13 @@ removes the loose files once the archive is written, leaving only the `.zip` (an
 
 ## Usage
 
-1. **Settings** tab — define your database connection (host/port/db/user/sslmode),
-   choose the output folder, dwell time, and capture options. Optionally enter a
-   session password (kept in memory only) or rely on `~/.pgpass`. Use **Test
-   connection** to confirm.
+1. **Settings** tab — define your database connection(s) (host/port/db/user/sslmode),
+   choose the output folder, dwell time, and capture options. **Changes save
+   automatically** (no Save button). Optionally type a session password (kept in
+   memory only, applied when you leave the field; empty it to clear) or rely on
+   `~/.pgpass`, and use **Test connection** to confirm. You can also pick the
+   **theme** (System / Light / Dark) and point the app at a custom **psql** or
+   **ffmpeg** binary (blank = auto-detect).
 2. **Queries** tab — add/edit/remove queries one by one, **drag the ⠿ handle to
    reorder** them, or **Import all** to paste a JSON query set or a plain `.sql`
    script (split on semicolons). When importing a script, the free text before each
@@ -103,9 +106,10 @@ removes the loose files once the archive is written, leaving only the `.zip` (an
    excluded from the SQL; the query is taken to start at the first SQL keyword
    (`SELECT`, `WITH`, …). With no leading text, the name falls back to the first SQL
    line. **Export all** saves your set as JSON.
-3. **Run** tab — **Start run**. Each query is executed in order; you'll see it on
-   screen with its checksum and result preview, and the evidence folder opens when
-   done.
+3. **Run** tab — pick the connection from the dropdown, toggle **Screenshots**/
+   **Video** as needed (these also update Settings), then **Start run**. Each query
+   runs in order; you'll see it on screen with its checksum and result preview, and
+   the evidence folder opens when done.
 
 ## Security & integrity
 

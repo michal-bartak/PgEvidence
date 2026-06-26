@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { activeTab, cfg, queries, env } from './stores';
   import { GetConfig, ListQueries, DetectEnvironment, RequestScreenAccess } from '../wailsjs/go/main/App';
+  import { applyTheme } from './theme';
   import Queries from './views/Queries.svelte';
   import Run from './views/Run.svelte';
   import Settings from './views/Settings.svelte';
@@ -13,6 +14,7 @@
     try {
       $env = await DetectEnvironment();
       $cfg = await GetConfig();
+      applyTheme($cfg.theme || 'system');
       $queries = await ListQueries();
       loaded = true;
     } catch (e) {
@@ -25,8 +27,6 @@
     { id: 'run', label: 'Run' },
     { id: 'settings', label: 'Settings' },
   ];
-
-  $: enabledCount = $queries.filter((q) => q.enabled).length;
 
   let screenMsg = '';
   async function grantScreen() {
@@ -47,7 +47,6 @@
       {#each tabs as t}
         <button class="tab" class:active={$activeTab === t.id} on:click={() => ($activeTab = t.id)}>
           {t.label}
-          {#if t.id === 'queries'}<span class="badge">{enabledCount}/{$queries.length}</span>{/if}
         </button>
       {/each}
     </nav>
@@ -99,12 +98,8 @@
   .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); }
   .ver { font-size: 0.72rem; color: var(--muted); background: var(--bg); border: 1px solid var(--border-strong); border-radius: 10px; padding: 1px 7px; }
   nav { display: flex; gap: 6px; }
-  .tab { background: transparent; border-color: transparent; }
-  .tab.active { background: var(--bg-3); border-color: var(--border-strong); }
-  .badge {
-    background: var(--bg); border-radius: 10px; padding: 1px 7px;
-    font-size: 0.72rem; margin-left: 6px; color: var(--muted);
-  }
+  .tab { background: transparent; }
+  .tab.active { background: var(--accent-2); border-color: var(--accent-2); color: var(--on-accent); }
   .banner { padding: 8px 18px; font-size: 0.85rem; flex: 0 0 auto; }
   .banner.err { background: #3a1f1f; color: #ffc2c2; border-bottom: 1px solid #6b3030; }
   .banner.warn { background: #3a341c; color: #ffe6a3; border-bottom: 1px solid #6b5a2a; display: flex; align-items: center; gap: 10px; }
