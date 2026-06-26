@@ -125,6 +125,35 @@ files* is on (so it isn't lost), while everything else still goes into the zip.
 - Runs use `--no-psqlrc` and `ON_ERROR_STOP=1` for reproducibility, and every
   output is checksummed.
 
+## Troubleshooting
+
+**macOS keeps prompting "PgEvidence is recording your screen" even though I granted it.**
+That dialog is macOS's built‑in screen‑recording *reminder* (Sequoia and later), separate
+from the Screen Recording toggle in System Settings. macOS shows it on first use after an
+app is installed/updated, then periodically — even for apps that already have permission.
+It only affects **video recording** (which uses a continuous capture stream); screenshots
+use Apple's `screencapture` tool and don't trigger it. Because capture is already permitted,
+recording starts immediately, so the reminder can appear in the first seconds of the video.
+Click **Allow**; it won't reappear until the next update or month. (We don't record audio —
+ffmpeg captures video only; the "and audio" wording is macOS's.)
+
+**Screenshots come out blank (macOS).** Grant **Screen Recording** to PgEvidence in
+System Settings → Privacy & Security → Screen Recording, then **quit and reopen** the app
+(a TCC grant doesn't apply to an already‑running process).
+
+**macOS won't open the app ("unidentified developer").** The app is unsigned (Gatekeeper).
+Either download the DMG with `curl -LJO <url>` (no quarantine flag is set) or run once:
+`xattr -d com.apple.quarantine /Applications/pgevidence.app`.
+
+**"psql not found".** Install the PostgreSQL client (`psql`). PgEvidence auto‑detects it on
+PATH and in common locations (Homebrew, Postgres.app, EDB, `Program Files`); if it's
+elsewhere, set the path in **Settings → Environment → psql path** (Browse…). The Linux
+packages install the client automatically.
+
+**Linux: sluggish UI or wrong monitor.** The provided packages launch under XWayland
+(`GDK_BACKEND=x11`) automatically. If you run the binary directly, prefix it:
+`GDK_BACKEND=x11 pgevidence`.
+
 ## Development
 
 ```sh

@@ -1,0 +1,8 @@
+:root {
+  --sl-color-accent: #2f6fd0 !important;
+  --sl-color-accent-high: var(--sl-color-accent) !important;
+}
+
+a[href="#_top"] {
+  display: none;
+}
