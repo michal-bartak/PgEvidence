@@ -10,7 +10,7 @@ ICNS := build/appicon.icns
 SIGN_IDENTITY ?= PgEvidence Dev
 LSREGISTER := /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/LaunchServices.framework/Versions/A/Support/lsregister
 
-.PHONY: build sign dist dev cert reset-screen-perm vet icon fix-icon
+.PHONY: build sign dist dev cert reset-screen-perm vet icon fix-icon docs docs-build docs-preview
 
 build:
 	wails build
@@ -51,3 +51,15 @@ vet:
 # build/windows/icon.ico (requires Python + Pillow; .icns also needs iconutil).
 icon:
 	python3 scripts/gen_icon.py
+
+# Docs site (Astro Starlight in docs/). `make docs` serves it locally at
+# http://localhost:4321/Audit-PG-Extractor/ with hot reload.
+docs:
+	cd docs && { [ -d node_modules ] || npm install; } && npm run dev
+
+docs-build:
+	cd docs && { [ -d node_modules ] || npm install; } && npm run build
+
+# Serve the production build exactly as GitHub Pages will.
+docs-preview: docs-build
+	cd docs && npm run preview
