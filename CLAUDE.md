@@ -40,6 +40,13 @@ runs reproducible and self-evidencing. Files for one run live in
   checksummed file, including `manifest.json.sha256` (no special `run.sha256`).
 - **Version has one source:** the repo-root `VERSION` file, embedded into `main.go`
   (`//go:embed VERSION` → `AppVersion`), recorded in the manifest and shown in the UI.
+- **Cased display name vs lowercase artifacts.** Human-facing places use
+  "PgEvidence": `wails.json` `productName` (→ `CFBundleName` + `CFBundleDisplayName`,
+  so Finder/Applications/Screen-Recording show it), the config dir
+  (`os.UserConfigDir()/PgEvidence`, with case-fix migration), and the default output
+  folder. Lowercase `pgevidence` stays for build artifacts: `outputfilename` (binary,
+  `.dmg`/`.msi`/`.deb`/`.rpm` names), the Go module path, and the bundle id
+  `com.wails.pgevidence`.
 - **App icon has one source drawing:** `scripts/gen_icon.py` (mirrors
   `build/appicon.svg`) emits `build/appicon.png`, a complete `build/appicon.icns`,
   and `build/windows/icon.ico`. See the icon gotcha below — Wails' own icon
@@ -54,7 +61,7 @@ is a thin live view. `App` (in `app.go`) is the Wails-bound object and implement
 ```
 main.go                      Wails bootstrap (window 1200x820, bindings)
 app.go                       App struct: bound methods + runner.UI (Emit/BringToFront)
-internal/config/             Config + Connection list; JSON in os.UserConfigDir()/pgevidence
+internal/config/             Config + Connection list; JSON in os.UserConfigDir()/PgEvidence
 internal/store/              Query CRUD: Upsert/Delete/Move/ReplaceAll/Import/Export
                              Import parses JSON set OR splits a SQL script on top-level ';'
                              (comment-aware); query name = the free text/comment

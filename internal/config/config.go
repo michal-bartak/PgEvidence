@@ -45,28 +45,51 @@ type Config struct {
 	ExcludeVideoFromZip  bool         `json:"excludeVideoFromZip"` // keep run.mp4 out of the archive (and out of prune)
 }
 
-const appDirName = "pgevidence"
-const legacyAppDirName = "audit-extractor" // pre-rename; migrated once
+// appDirName is the human-readable config/state dir (paths show "PgEvidence", not
+// lowercase). legacyAppDirNames are migrated to it once (incl. a case fix on
+// case-insensitive filesystems).
+const appDirName = "PgEvidence"
+
+var legacyAppDirNames = []string{"pgevidence", "audit-extractor"}
 
 // AppDir returns the application's config/state directory, creating it if
-// necessary (e.g. ~/Library/Application Support/pgevidence on macOS). On first run
-// after the rename it migrates the old "audit-extractor" dir if present.
+// necessary (e.g. ~/Library/Application Support/PgEvidence on macOS), migrating an
+// older-named dir if present.
 func AppDir() (string, error) {
 	base, err := os.UserConfigDir()
 	if err != nil {
 		return "", err
 	}
 	dir := filepath.Join(base, appDirName)
-	if _, statErr := os.Stat(dir); os.IsNotExist(statErr) {
-		legacy := filepath.Join(base, legacyAppDirName)
-		if _, e := os.Stat(legacy); e == nil {
-			_ = os.Rename(legacy, dir) // best-effort migration of existing config/queries
-		}
-	}
+	migrateAppDir(base, dir)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", err
 	}
 	return dir, nil
+}
+
+// migrateAppDir renames a legacy app dir to the canonical name. On case-insensitive
+// filesystems the legacy "pgevidence" resolves to the same dir as "PgEvidence"; the
+// os.SameFile check lets us rename it purely to fix the displayed case without
+// clobbering a genuinely distinct directory.
+func migrateAppDir(base, dir string) {
+	for _, ln := range legacyAppDirNames {
+		legacy := filepath.Join(base, ln)
+		if legacy == dir {
+			continue
+		}
+		lfi, e := os.Stat(legacy)
+		if e != nil || !lfi.IsDir() {
+			continue
+		}
+		if dfi, de := os.Stat(dir); de == nil {
+			if os.SameFile(lfi, dfi) {
+				_ = os.Rename(legacy, dir) // case-only fix
+			}
+			continue // a distinct canonical dir already exists — don't clobber
+		}
+		_ = os.Rename(legacy, dir)
+	}
 }
 
 func configPath() (string, error) {
@@ -78,11 +101,11 @@ func configPath() (string, error) {
 }
 
 // Default returns a sensible default configuration. The output directory points
-// at ~/audit-extracts.
+// at ~/PgEvidence.
 func Default() Config {
-	out := "audit-extracts"
+	out := "PgEvidence"
 	if home, err := os.UserHomeDir(); err == nil {
-		out = filepath.Join(home, "audit-extracts")
+		out = filepath.Join(home, "PgEvidence")
 	}
 	return Config{
 		Connections: []Connection{{
