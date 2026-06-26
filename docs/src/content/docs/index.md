@@ -1,41 +1,41 @@
 ---
 title: PgEvidence
-description: Tamper-evident PostgreSQL audit evidence
+description: Screenshot, record, and checksum PostgreSQL query results for auditors
 ---
 
-PgEvidence is a cross-platform desktop app that runs a maintained set of **read-only**
-SQL queries against PostgreSQL and produces **tamper-evident evidence** for auditors —
-proof of a database's settings, structure, or data at a point in time.
+PgEvidence runs a set of read-only SQL queries against PostgreSQL one by one and
+**takes a screenshot — and optionally a video — of each result as it appears on
+screen**, with the OS clock in frame. Alongside the picture it saves the data as CSV
+and a checksum, so you end up with a set of files you can hand to an auditor.
 
 ![PgEvidence running a query](../../assets/screenshot-run.png)
 
-## What each run produces
+## Results
 
-For every query, in order:
+Each run writes a timestamped folder. Per query (`NNNN_<slug>`):
 
-- a **CSV** result via the system `psql`,
-- a **SHA-256 checksum** sidecar you can verify with `sha256sum -c`,
-- a **full-screen screenshot** showing the query, its checksum, and a result preview —
-  **with the OS clock in frame** as proof-of-time,
-- optionally the query text (`.sql`) and a screen **recording** (`.mp4`),
-- a run **`manifest.json`** with its own checksum.
+- `NNNN_<slug>.png` — full-screen screenshot of the result, including the OS clock
+- `NNNN_<slug>.csv` — the result rows, via `psql`
+- `NNNN_<slug>.csv.sha256` — SHA-256 checksum of the CSV (`sha256sum` format)
+- `NNNN_<slug>.sql` — the query text (optional)
 
-Optionally the whole run is packed into a **ZIP** (optionally password-protected).
+Plus, per run:
+
+- `run.mp4` — screen recording of the whole run (optional)
+- `manifest.json` + `manifest.json.sha256` — run summary and its checksum
+- `<run>.zip` (+ `.zip.pwd`) — optional archive of everything above
+
+Verify any file with `sha256sum -c <name>.sha256`.
 
 ## Highlights
 
-| | |
-|---|---|
-| **Read-only** | Sessions run with `default_transaction_read_only=on` — extracts can't change data |
-| **No stored DB password** | Comes from `~/.pgpass` or an in-memory session prompt |
-| **Proof-of-time** | The full-screen screenshot captures the OS clock |
-| **Reproducible** | `--no-psqlrc`, `ON_ERROR_STOP=1`, checksummed outputs + manifest |
-| **Archive** | One ZIP per run; optional password (explicit or auto-generated) |
-| **Themes** | System / Light / Dark |
+- Screenshot and/or video of the process
+- Signs result files with a hash, stored in a standard format
+- Import multiple SQL queries from pasted text
+- Uses the system `psql` to retrieve results
 
 :::note
-PgEvidence requires the PostgreSQL client (`psql`) on the machine running the app.
+Requires the PostgreSQL client (`psql`) on the machine running the app.
 :::
 
-Head to [Installation](/PgEvidence/installation/) to get started, or
-[Usage](/PgEvidence/usage/) for the workflow.
+See [Installation](/PgEvidence/installation/) and [Usage](/PgEvidence/usage/).

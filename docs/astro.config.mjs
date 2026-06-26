@@ -10,7 +10,7 @@ export default defineConfig({
   integrations: [
     starlight({
       title: 'PgEvidence',
-      description: 'Tamper-evident PostgreSQL audit evidence',
+      description: 'Screenshot, record, and checksum PostgreSQL query results for auditors',
       plugins: [starlightThemeRapide()],
       favicon: '/appicon.png',
       logo: {
