@@ -122,7 +122,7 @@ jobs:
           # Generate UI bitmaps from the app icon
           Add-Type -AssemblyName System.Drawing
           $src   = [System.Drawing.Image]::FromFile("$PWD\build\appicon.png")
-          $blue  = [System.Drawing.Color]::FromArgb(255, 47, 111, 208)    # app accent #2f6fd0
+          $blue  = [System.Drawing.Color]::FromArgb(255, 208, 226, 246)   # light blue #d0e2f6 (readable with black text)
           $gray  = [System.Drawing.Color]::FromArgb(255, 240, 240, 240)   # Windows default dialog bg
           $sm    = [System.Drawing.Drawing2D.SmoothingMode]::HighQuality
           $im    = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
@@ -188,10 +188,10 @@ jobs:
           printf '%s\n' \
             'from PIL import Image, ImageDraw' \
             'W, H = 540, 440' \
-            'img = Image.new("RGBA", (W, H), (47, 111, 208, 255))' \
+            'img = Image.new("RGBA", (W, H), (208, 226, 246, 255))' \
             'draw = ImageDraw.Draw(img)' \
             'TRI_W, TRI_H, TRI_GAP, TRI_N = 15, 17, 8, 5' \
-            'arrow_color = (255, 255, 255, 220)' \
+            'arrow_color = (47, 111, 208, 235)' \
             'start_x = 270 - (TRI_N * TRI_W + (TRI_N-1) * TRI_GAP) / 2' \
             'cy = 185' \
             '[draw.polygon([(start_x+i*(TRI_W+TRI_GAP), cy-TRI_H/2), (start_x+i*(TRI_W+TRI_GAP)+TRI_W, cy), (start_x+i*(TRI_W+TRI_GAP), cy+TRI_H/2)], fill=arrow_color) for i in range(TRI_N)]' \
