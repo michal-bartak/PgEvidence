@@ -7,7 +7,12 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"sync"
 )
+
+// mu serializes all config read-modify-write so concurrent writers (Settings
+// auto-save, the window-resize handler, theme changes) can't clobber each other.
+var mu sync.Mutex
 
 // Connection describes how to reach a PostgreSQL database. It deliberately
 // contains no password: the password is supplied at run time via ~/.pgpass or
@@ -140,6 +145,33 @@ func Default() Config {
 // Load reads the configuration from disk, falling back to defaults (and writing
 // them) when no config file exists yet.
 func Load() (Config, error) {
+	mu.Lock()
+	defer mu.Unlock()
+	return loadLocked()
+}
+
+// Save writes the configuration to disk.
+func Save(cfg Config) error {
+	mu.Lock()
+	defer mu.Unlock()
+	return saveLocked(cfg)
+}
+
+// Update performs an atomic read-modify-write under the config lock: it loads the
+// current config, applies mutate, and saves the result. Use this for partial
+// updates (window size, theme) so they don't race a full Save.
+func Update(mutate func(*Config)) error {
+	mu.Lock()
+	defer mu.Unlock()
+	cfg, err := loadLocked()
+	if err != nil {
+		return err
+	}
+	mutate(&cfg)
+	return saveLocked(cfg)
+}
+
+func loadLocked() (Config, error) {
 	path, err := configPath()
 	if err != nil {
 		return Config{}, err
@@ -147,7 +179,7 @@ func Load() (Config, error) {
 	data, err := os.ReadFile(path)
 	if os.IsNotExist(err) {
 		cfg := Default()
-		_ = Save(cfg)
+		_ = saveLocked(cfg)
 		return cfg, nil
 	}
 	if err != nil {
@@ -160,8 +192,9 @@ func Load() (Config, error) {
 	return cfg, nil
 }
 
-// Save writes the configuration to disk.
-func Save(cfg Config) error {
+// saveLocked writes the config atomically: marshal to a temp file in the same
+// dir, then rename over the target so a crash mid-write can't leave a torn file.
+func saveLocked(cfg Config) error {
 	path, err := configPath()
 	if err != nil {
 		return err
@@ -170,7 +203,25 @@ func Save(cfg Config) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, data, 0o644)
+	tmp, err := os.CreateTemp(filepath.Dir(path), "config-*.json.tmp")
+	if err != nil {
+		return err
+	}
+	tmpName := tmp.Name()
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
+		os.Remove(tmpName)
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		os.Remove(tmpName)
+		return err
+	}
+	if err := os.Rename(tmpName, path); err != nil {
+		os.Remove(tmpName)
+		return err
+	}
+	return nil
 }
 
 // FindConnection returns the connection with the given ID, or false.

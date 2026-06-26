@@ -196,7 +196,6 @@ func RunToFile(ctx context.Context, conn Conn, sql string, readOnly bool, passwo
 	if err != nil {
 		return Result{}, err
 	}
-	defer f.Close()
 
 	cmd := exec.CommandContext(ctx, bin, append(args(sql), "-d", conn.connString())...)
 	proc.Hide(cmd)
@@ -207,6 +206,9 @@ func RunToFile(ctx context.Context, conn Conn, sql string, readOnly bool, passwo
 
 	start := time.Now()
 	runErr := cmd.Run()
+	// Close explicitly and capture the error: a failed flush/close (e.g. disk
+	// full) means the CSV is truncated, and we must NOT then checksum it as valid.
+	closeErr := f.Close()
 	res := Result{
 		Stderr:   strings.TrimSpace(stderr.String()),
 		Duration: time.Since(start),
@@ -215,10 +217,15 @@ func RunToFile(ctx context.Context, conn Conn, sql string, readOnly bool, passwo
 		res.ExitCode = cmd.ProcessState.ExitCode()
 	}
 	if runErr != nil {
+		os.Remove(outPath) // don't leave a partial/empty CSV behind
 		if res.Stderr != "" {
 			return res, fmt.Errorf("%s", res.Stderr)
 		}
 		return res, runErr
+	}
+	if closeErr != nil {
+		os.Remove(outPath)
+		return res, fmt.Errorf("finalising %s: %w", outPath, closeErr)
 	}
 	return res, nil
 }

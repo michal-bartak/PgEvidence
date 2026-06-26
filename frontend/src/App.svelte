@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import { activeTab, cfg, queries, env, runOpts, savedTick } from './stores';
+  import { activeTab, cfg, queries, env, runOpts, savedTick, isRunning } from './stores';
   import { GetConfig, ListQueries, DetectEnvironment, RequestScreenAccess, OpenScreenRecordingSettings, SaveWindowSize } from '../wailsjs/go/main/App';
   import { WindowGetSize } from '../wailsjs/runtime/runtime';
   import { applyTheme } from './theme';
@@ -98,6 +98,8 @@
           class:flash-hold={t.id === 'settings' && flashState === 'hold'}
           class:flash-fade={t.id === 'settings' && flashState === 'fade'}
           on:click={() => ($activeTab = t.id)}
+          disabled={$isRunning && t.id !== $activeTab}
+          title={$isRunning && t.id !== $activeTab ? 'Disabled while a run is in progress' : ''}
         >
           <!-- Sizer reserves the natural label width so swapping in "Saved"
                (shorter) doesn't shrink the button. -->

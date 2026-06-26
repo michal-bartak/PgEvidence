@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import { cfg, queries, env, activeTab, runOpts } from '../stores';
+  import { cfg, queries, env, activeTab, runOpts, isRunning } from '../stores';
   import type { QueryPayload, ResultPayload, DonePayload } from '../stores';
   import { EventsOn } from '../../wailsjs/runtime/runtime';
   import { StartRun, CancelRun, OpenRunFolder, ArchiveRun, ArchiveRunAuto, PruneRunDir } from '../../wailsjs/go/main/App';
@@ -8,6 +8,9 @@
   import Hint from '../components/Hint.svelte';
 
   let running = false;
+  // Mirror local run state into the shared store so App.svelte can lock the
+  // other tabs while a run is active (prevents this view from unmounting).
+  $: $isRunning = running;
   let total = 0;
   let current: QueryPayload | null = null;
   let result: ResultPayload | null = null;
@@ -47,6 +50,8 @@
     unsub.push(EventsOn('run:done', (p: DonePayload) => {
       running = false; done = p; current = null; capturing = false; stopHold();
       if (p.error) { startError = p.error; return; }
+      // Don't auto-archive an interrupted run — its evidence is incomplete.
+      if (p.cancelled) { logs = [...logs, 'run cancelled — ZIP archive skipped']; return; }
       if (p.runDir && $runOpts?.zip) archive(p.runDir);
     }));
   });
@@ -115,7 +120,9 @@
   $: canStart = !running && !!$env?.psqlFound && enabled.length > 0 && !!conn;
 
   async function start() {
+    if (running) return; // guard a double-click before the first run:* event lands
     startError = '';
+    running = true; // lock immediately; run:start will confirm, run:done releases
     try {
       // Per-run options come from $runOpts (not saved) — the Run page is the
       // authority for screenshots/video/connection; everything else is Settings.
@@ -124,7 +131,10 @@
         $runOpts?.video ?? false,
         $runOpts?.connectionId ?? conn?.id ?? '',
       );
-    } catch (e) { startError = String(e); }
+    } catch (e) {
+      startError = String(e);
+      running = false; // start failed synchronously — release the lock
+    }
   }
   async function cancel() { try { await CancelRun(); } catch {} }
   async function openFolder() { if (done?.runDir) { try { await OpenRunFolder(done.runDir); } catch {} } }
@@ -240,10 +250,11 @@
 
   {#if done && !done.error}
     <div class="card summary">
-      <h3>Run complete</h3>
+      <h3>{done.cancelled ? 'Run cancelled' : 'Run complete'}</h3>
       <p>
-        {done.ok} succeeded{done.failed ? `, ${done.failed} failed` : ''}{done.cancelled ? ' (cancelled)' : ''}.
-        Evidence written to:
+        {#if done.cancelled}Run interrupted after {done.ok} succeeded{done.failed ? `, ${done.failed} failed` : ''}.
+        {:else}{done.ok} succeeded{done.failed ? `, ${done.failed} failed` : ''}.{/if}
+        {done.cancelled ? 'Partial evidence' : 'Evidence'} written to:
       </p>
       <code class="path">{done.runDir}</code>
 

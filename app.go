@@ -66,17 +66,19 @@ func (a *App) GetConfig() (config.Config, error) { return config.Load() }
 
 func (a *App) SaveConfig(cfg config.Config) error {
 	applyToolPaths(cfg)
-	return config.Save(cfg)
+	// Window size is owned by SaveWindowSize and never sent by the Settings UI, so
+	// preserve whatever is on disk — otherwise a Settings save (carrying a stale
+	// window size) would clobber a size persisted by a resize.
+	return config.Update(func(cur *config.Config) {
+		w, h := cur.WindowWidth, cur.WindowHeight
+		*cur = cfg
+		cur.WindowWidth, cur.WindowHeight = w, h
+	})
 }
 
 // UpdateTheme persists only the theme field without disturbing other settings.
 func (a *App) UpdateTheme(theme string) error {
-	cfg, err := config.Load()
-	if err != nil {
-		return err
-	}
-	cfg.Theme = theme
-	return config.Save(cfg)
+	return config.Update(func(cur *config.Config) { cur.Theme = theme })
 }
 
 // --- query management ---------------------------------------------------------
@@ -264,6 +266,13 @@ func (a *App) StartRun(screenshots bool, video bool, connectionID string) error 
 
 	go func() {
 		defer func() {
+			// A panic in the run loop must not take the whole app down: report it
+			// as a failed run and always release the running state.
+			if r := recover(); r != nil {
+				a.Emit(runner.EventDone, map[string]interface{}{
+					"error": fmt.Sprintf("internal error during run: %v", r),
+				})
+			}
 			a.mu.Lock()
 			a.running = false
 			a.cancel = nil
@@ -339,13 +348,10 @@ func (a *App) PruneRunDir(runDir string, keepVideo bool) error {
 // next launch. The frontend passes Wails' WindowGetSize (the OS window size, not
 // the webview viewport) — otherwise the window would shrink a little each launch.
 func (a *App) SaveWindowSize(width, height int) error {
-	cfg, err := config.Load()
-	if err != nil {
-		return err
-	}
-	cfg.WindowWidth = width
-	cfg.WindowHeight = height
-	return config.Save(cfg)
+	return config.Update(func(cur *config.Config) {
+		cur.WindowWidth = width
+		cur.WindowHeight = height
+	})
 }
 
 // OpenRunFolder reveals a run directory in the OS file manager.

@@ -355,6 +355,25 @@ decision is made or reversed.
 - **Window size persistence + Windows console hiding.** See Platform gotchas: save
   the Wails OS window size (not the viewport) to avoid per-launch shrink; run every
   console child through `proc.Hide` so Windows doesn't flash a shell window.
+- **Code-review hardening (post-1.0).** From a multi-agent review:
+  - *Config is serialized + atomic.* `config` has a package mutex; `Load/Save`
+    lock and `Update(mutate)` does a locked read-modify-write; `saveLocked` writes
+    temp-file + `os.Rename`. **Window size is owned by `SaveWindowSize`**, so
+    `SaveConfig` preserves the on-disk `WindowWidth/Height` (the Settings UI never
+    sends them) — otherwise a Settings save with a stale size would revert a resize.
+  - *Run tab locks during a run.* Shared `isRunning` store: while a run is active
+    the other tab buttons are disabled, so `Run.svelte` can't unmount and drop its
+    `run:*` handlers (which would strand the run + re-enable Start → double-run).
+    `start()` also sets `running=true` synchronously to guard a double-click.
+  - *Run goroutine recovers from panics* (emits `run:done` with the error, releases
+    `running`) instead of crashing the app.
+  - *CSV integrity:* `psql.RunToFile` closes the output explicitly and checks the
+    error (a failed flush = truncated CSV → query fails, not a checksummed lie), and
+    `os.Remove`s the file on any error path so no partial `.csv` is left.
+- **A cancelled run is not archived.** The runner still writes the partial loose
+  files + `manifest.json` (a truthful record of what completed), but the frontend
+  skips the auto-ZIP on `done.cancelled` (incomplete evidence) — so prune never runs
+  either. The Run summary shows "Run cancelled" / "Partial evidence written to:".
 - Plans of record (newest last): build, polish, ZIP archiving, release packaging,
   theming+Run controls+hints, Settings auto-save/password/tool-paths, and per-run
   Run controls + Settings "Saved" flash — under `~/.claude/plans/`.

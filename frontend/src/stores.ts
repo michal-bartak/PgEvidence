@@ -23,6 +23,10 @@ export const runOpts = writable<RunOpts | null>(null);
 /** Bumped after each Settings auto-save; App.svelte flashes the Settings tab. */
 export const savedTick = writable(0);
 
+/** True while a run is in progress. Shared so App.svelte can lock the other tabs
+ *  — leaving the Run tab would unmount it and drop the run:* event handlers. */
+export const isRunning = writable(false);
+
 /** Shape of the run:result event payload emitted by the Go runner. */
 export interface ResultPayload {
   index: number;
