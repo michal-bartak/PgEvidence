@@ -191,7 +191,9 @@ func (a *App) IsRunning() bool {
 
 // StartRun kicks off the run on a background goroutine and returns immediately.
 // Progress is delivered through run:* events.
-func (a *App) StartRun() error {
+// StartRun runs with per-run overrides from the Run page (screenshots, video,
+// connection) layered over the saved config — WITHOUT persisting them.
+func (a *App) StartRun(screenshots bool, video bool, connectionID string) error {
 	a.mu.Lock()
 	if a.running {
 		a.mu.Unlock()
@@ -204,7 +206,13 @@ func (a *App) StartRun() error {
 		return err
 	}
 	applyToolPaths(cfg)
-	c, ok := cfg.FindConnection(cfg.SelectedConnectionID)
+	// Per-run overrides (not saved): the Run page is the authority for these.
+	cfg.Screenshots = screenshots
+	cfg.Video = video
+	if connectionID == "" {
+		connectionID = cfg.SelectedConnectionID
+	}
+	c, ok := cfg.FindConnection(connectionID)
 	if !ok {
 		return fmt.Errorf("no connection selected")
 	}
@@ -279,9 +287,8 @@ func (a *App) SelectFile(title string) (string, error) {
 
 // ArchiveRun zips the run folder into <runDir>/<name>.zip. A non-empty password
 // ZipCrypto-encrypts the entries; empty means an unencrypted archive.
-func (a *App) ArchiveRun(runDir, password string) (archive.Result, error) {
-	cfg, _ := config.Load()
-	zipPath, err := archive.Create(runDir, password, cfg.ExcludeVideoFromZip)
+func (a *App) ArchiveRun(runDir, password string, excludeVideo bool) (archive.Result, error) {
+	zipPath, err := archive.Create(runDir, password, excludeVideo)
 	if err != nil {
 		return archive.Result{}, err
 	}
@@ -294,13 +301,12 @@ func (a *App) ArchiveRun(runDir, password string) (archive.Result, error) {
 
 // ArchiveRunAuto zips the run folder with a generated password and writes that
 // password to <zip>.pwd next to the archive.
-func (a *App) ArchiveRunAuto(runDir string) (archive.Result, error) {
+func (a *App) ArchiveRunAuto(runDir string, excludeVideo bool) (archive.Result, error) {
 	pw, err := archive.GeneratePassword()
 	if err != nil {
 		return archive.Result{}, err
 	}
-	cfg, _ := config.Load()
-	zipPath, err := archive.Create(runDir, pw, cfg.ExcludeVideoFromZip)
+	zipPath, err := archive.Create(runDir, pw, excludeVideo)
 	if err != nil {
 		return archive.Result{}, err
 	}
@@ -313,9 +319,8 @@ func (a *App) ArchiveRunAuto(runDir string) (archive.Result, error) {
 
 // PruneRunDir deletes the loose source files in a run folder, keeping only the
 // ZIP archive (and its .pwd). Safe: it refuses if the archive is missing/empty.
-func (a *App) PruneRunDir(runDir string) error {
-	cfg, _ := config.Load()
-	return archive.PruneSources(runDir, cfg.ExcludeVideoFromZip)
+func (a *App) PruneRunDir(runDir string, keepVideo bool) error {
+	return archive.PruneSources(runDir, keepVideo)
 }
 
 // OpenRunFolder reveals a run directory in the OS file manager.

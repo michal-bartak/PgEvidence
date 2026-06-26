@@ -1,9 +1,9 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import { cfg, queries, env, activeTab } from '../stores';
+  import { cfg, queries, env, activeTab, runOpts } from '../stores';
   import type { QueryPayload, ResultPayload, DonePayload } from '../stores';
   import { EventsOn } from '../../wailsjs/runtime/runtime';
-  import { StartRun, CancelRun, OpenRunFolder, SaveConfig, ArchiveRun, ArchiveRunAuto, PruneRunDir } from '../../wailsjs/go/main/App';
+  import { StartRun, CancelRun, OpenRunFolder, ArchiveRun, ArchiveRunAuto, PruneRunDir } from '../../wailsjs/go/main/App';
   import type { archive } from '../../wailsjs/go/models';
   import Hint from '../components/Hint.svelte';
 
@@ -47,16 +47,19 @@
     unsub.push(EventsOn('run:done', (p: DonePayload) => {
       running = false; done = p; current = null; capturing = false; stopHold();
       if (p.error) { startError = p.error; return; }
-      if (p.runDir && $cfg?.zip) archive(p.runDir);
+      if (p.runDir && $runOpts?.zip) archive(p.runDir);
     }));
   });
 
   async function archive(runDir: string) {
     archiving = true; archiveError = ''; archiveResult = null; pruned = false;
+    const excludeVideo = $runOpts?.excludeVideoFromZip ?? false;
     try {
+      // ZIP password policy is a Settings concern (read from $cfg); whether to ZIP
+      // at all and what to exclude/prune is per-run ($runOpts).
       const mode = $cfg?.zipPasswordMode ?? 'none';
       if (mode === 'auto') {
-        archiveResult = await ArchiveRunAuto(runDir);
+        archiveResult = await ArchiveRunAuto(runDir, excludeVideo);
       } else if (mode === 'explicit') {
         let pw = $cfg?.zipPassword ?? '';
         if (!pw) {
@@ -64,13 +67,13 @@
           if (!entered) { logs = [...logs, 'archiving skipped — no password provided']; return; }
           pw = entered;
         }
-        archiveResult = await ArchiveRun(runDir, pw);
+        archiveResult = await ArchiveRun(runDir, pw, excludeVideo);
       } else {
-        archiveResult = await ArchiveRun(runDir, '');
+        archiveResult = await ArchiveRun(runDir, '', excludeVideo);
       }
       // Only after a confirmed archive, optionally drop the loose source files.
-      if (archiveResult && $cfg?.deleteSourcesAfterZip) {
-        await PruneRunDir(runDir);
+      if (archiveResult && $runOpts?.deleteSourcesAfterZip) {
+        await PruneRunDir(runDir, excludeVideo);
         pruned = true;
       }
     } catch (e) {
@@ -102,46 +105,68 @@
   function stopHold() { if (holdTimer) { clearInterval(holdTimer); holdTimer = null; } }
 
   $: enabled = $queries.filter((q) => q.enabled);
-  $: conn = $cfg?.connections.find((c) => c.id === $cfg?.selectedConnectionId) ?? null;
+  // The Run page is the authority for the target connection this session; fall
+  // back to the saved selection / first connection if the run id is missing.
+  $: conn =
+    $cfg?.connections.find((c) => c.id === $runOpts?.connectionId) ??
+    $cfg?.connections.find((c) => c.id === $cfg?.selectedConnectionId) ??
+    $cfg?.connections[0] ??
+    null;
   $: canStart = !running && !!$env?.psqlFound && enabled.length > 0 && !!conn;
 
   async function start() {
     startError = '';
     try {
-      // Persist the current (on-screen) settings first, so the run uses exactly
-      // what's shown — StartRun reads the saved config on the backend.
-      if ($cfg) await SaveConfig($cfg);
-      await StartRun();
+      // Per-run options come from $runOpts (not saved) — the Run page is the
+      // authority for screenshots/video/connection; everything else is Settings.
+      await StartRun(
+        $runOpts?.screenshots ?? false,
+        $runOpts?.video ?? false,
+        $runOpts?.connectionId ?? conn?.id ?? '',
+      );
     } catch (e) { startError = String(e); }
   }
   async function cancel() { try { await CancelRun(); } catch {} }
   async function openFolder() { if (done?.runDir) { try { await OpenRunFolder(done.runDir); } catch {} } }
 
-  // Run-tab controls mutate the shared cfg store and persist immediately, so the
-  // Settings page (bound to the same store) reflects them and they survive restart.
-  async function persistCfg() { if ($cfg) { try { await SaveConfig($cfg); } catch {} } }
-  function toggleScreenshots() { if (!$cfg) return; $cfg.screenshots = !$cfg.screenshots; $cfg = $cfg; persistCfg(); }
-  function toggleVideo() { if (!$cfg || !$env?.ffmpegFound) return; $cfg.video = !$cfg.video; $cfg = $cfg; persistCfg(); }
+  // Run-tab controls mutate ONLY the ephemeral $runOpts store — never persisted.
+  // They are seeded from saved settings at app start (see App.svelte).
+  function toggleScreenshots() { if (!$runOpts) return; $runOpts.screenshots = !$runOpts.screenshots; $runOpts = $runOpts; }
+  function toggleVideo() { if (!$runOpts || !$env?.ffmpegFound) return; $runOpts.video = !$runOpts.video; $runOpts = $runOpts; }
+  function toggleZip() { if (!$runOpts) return; $runOpts.zip = !$runOpts.zip; $runOpts = $runOpts; }
+  function toggleDelete() { if (!$runOpts) return; $runOpts.deleteSourcesAfterZip = !$runOpts.deleteSourcesAfterZip; $runOpts = $runOpts; }
+  function toggleExcludeVideo() { if (!$runOpts) return; $runOpts.excludeVideoFromZip = !$runOpts.excludeVideoFromZip; $runOpts = $runOpts; }
 </script>
 
 <div class="wrap">
   <div class="bar">
     <div class="ctx">
-      {#if $cfg}
-        <select class="connsel" bind:value={$cfg.selectedConnectionId} on:change={persistCfg} disabled={running}>
+      {#if $cfg && $runOpts}
+        <select class="connsel" bind:value={$runOpts.connectionId} disabled={running}>
           {#each $cfg.connections as cn}<option value={cn.id}>{cn.name}</option>{/each}
         </select>
       {/if}
       {#if $cfg?.enforceReadOnly}<span class="chip ro">read-only</span>{/if}
-      <button class="toggle" class:on={$cfg?.screenshots} on:click={toggleScreenshots} disabled={running}>
-        Screenshots: {$cfg?.screenshots ? 'on' : 'off'}
+      <button class="toggle" class:on={$runOpts?.screenshots} on:click={toggleScreenshots} disabled={running}>
+        Screenshots: {$runOpts?.screenshots ? 'on' : 'off'}
       </button>
       <span class="vidwrap" title={!$env?.ffmpegFound ? 'Video recording needs ffmpeg installed on this machine.' : ''}>
-        <button class="toggle" class:on={$cfg?.video && $env?.ffmpegFound}
+        <button class="toggle" class:on={$runOpts?.video && $env?.ffmpegFound}
           on:click={toggleVideo} disabled={running || !$env?.ffmpegFound}>
-          Video: {$cfg?.video && $env?.ffmpegFound ? 'on' : 'off'}
+          Video: {$runOpts?.video && $env?.ffmpegFound ? 'on' : 'off'}
         </button>
       </span>
+      <button class="toggle" class:on={$runOpts?.zip} on:click={toggleZip} disabled={running}>
+        ZIP: {$runOpts?.zip ? 'on' : 'off'}
+      </button>
+      <button class="toggle" class:on={$runOpts?.zip && $runOpts?.deleteSourcesAfterZip}
+        on:click={toggleDelete} disabled={running || !$runOpts?.zip}>
+        Delete sources: {$runOpts?.zip && $runOpts?.deleteSourcesAfterZip ? 'on' : 'off'}
+      </button>
+      <button class="toggle" class:on={$runOpts?.zip && $runOpts?.excludeVideoFromZip}
+        on:click={toggleExcludeVideo} disabled={running || !$runOpts?.zip}>
+        Exclude video: {$runOpts?.zip && $runOpts?.excludeVideoFromZip ? 'on' : 'off'}
+      </button>
     </div>
     <div class="spacer"></div>
     {#if running}
@@ -222,7 +247,7 @@
       </p>
       <code class="path">{done.runDir}</code>
 
-      {#if $cfg?.zip}
+      {#if $runOpts?.zip}
         <div class="archive">
           {#if archiving}
             <span class="muted">Creating ZIP archive…</span>

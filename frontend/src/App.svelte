@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { activeTab, cfg, queries, env } from './stores';
+  import { activeTab, cfg, queries, env, runOpts, savedTick } from './stores';
   import { GetConfig, ListQueries, DetectEnvironment, RequestScreenAccess } from '../wailsjs/go/main/App';
   import { applyTheme } from './theme';
   import Queries from './views/Queries.svelte';
@@ -15,11 +15,32 @@
       $env = await DetectEnvironment();
       $cfg = await GetConfig();
       applyTheme($cfg.theme || 'system');
+      // Seed the per-run options from saved settings (load-time sync only; the
+      // Run page edits these for the session without writing back to config).
+      $runOpts = {
+        screenshots: $cfg.screenshots,
+        video: $cfg.video,
+        zip: $cfg.zip,
+        deleteSourcesAfterZip: $cfg.deleteSourcesAfterZip,
+        excludeVideoFromZip: $cfg.excludeVideoFromZip,
+        connectionId: $cfg.selectedConnectionId,
+      };
       $queries = await ListQueries();
       loaded = true;
     } catch (e) {
       loadError = String(e);
     }
+  });
+
+  // Flash the Settings tab green ("Saved") whenever a settings auto-save lands.
+  let flashing = false;
+  let flashTimer: ReturnType<typeof setTimeout>;
+  let savedSeen = false;
+  savedTick.subscribe(() => {
+    if (!savedSeen) { savedSeen = true; return; } // ignore the initial value
+    flashing = true;
+    clearTimeout(flashTimer);
+    flashTimer = setTimeout(() => (flashing = false), 1000);
   });
 
   const tabs: { id: 'queries' | 'run' | 'settings'; label: string }[] = [
@@ -45,8 +66,13 @@
     </div>
     <nav>
       {#each tabs as t}
-        <button class="tab" class:active={$activeTab === t.id} on:click={() => ($activeTab = t.id)}>
-          {t.label}
+        <button
+          class="tab"
+          class:active={$activeTab === t.id}
+          class:saved-flash={t.id === 'settings' && flashing}
+          on:click={() => ($activeTab = t.id)}
+        >
+          {t.id === 'settings' && flashing ? 'Saved' : t.label}
         </button>
       {/each}
     </nav>
@@ -100,6 +126,12 @@
   nav { display: flex; gap: 6px; }
   .tab { background: transparent; }
   .tab.active { background: var(--accent-2); border-color: var(--accent-2); color: var(--on-accent); }
+  /* Settings save feedback: green immediately, then fade to the active-tab color. */
+  .tab.saved-flash { color: var(--on-accent); animation: savedflash 1s ease-out forwards; }
+  @keyframes savedflash {
+    0%   { background: var(--ok); border-color: var(--ok); }
+    100% { background: var(--accent-2); border-color: var(--accent-2); }
+  }
   .banner { padding: 8px 18px; font-size: 0.85rem; flex: 0 0 auto; }
   .banner.err { background: #3a1f1f; color: #ffc2c2; border-bottom: 1px solid #6b3030; }
   .banner.warn { background: #3a341c; color: #ffe6a3; border-bottom: 1px solid #6b5a2a; display: flex; align-items: center; gap: 10px; }

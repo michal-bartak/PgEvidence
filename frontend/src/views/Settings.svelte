@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { cfg, env } from '../stores';
+  import { cfg, env, savedTick } from '../stores';
   import { config } from '../../wailsjs/go/models';
   import {
     SaveConfig, SelectOutputDir, SelectFile, TestConnection, DetectEnvironment,
@@ -12,7 +12,6 @@
   let pwStored = false;
   let testMsg = '';
   let testStatus: '' | 'testing' | 'ok' | 'error' = '';
-  let saved = false;
   let busy = false;
   let saveTimer: any;
   let prevConnId = '';
@@ -34,7 +33,7 @@
     if (!c) return;
     clearTimeout(saveTimer);
     saveTimer = setTimeout(async () => {
-      try { await SaveConfig(c!); saved = true; setTimeout(() => (saved = false), 1200); } catch {}
+      try { await SaveConfig(c!); $savedTick++; } catch {}
     }, 400);
   }
 
@@ -85,7 +84,7 @@
 
   async function redetect() {
     if (!c) return;
-    try { await SaveConfig(c); $env = await DetectEnvironment(); saved = true; setTimeout(() => (saved = false), 1200); } catch {}
+    try { await SaveConfig(c); $env = await DetectEnvironment(); $savedTick++; } catch {}
   }
 
   function setTheme(t: string) {
@@ -111,7 +110,6 @@
 {#if c}
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <div class="wrap scroll" on:input={autoSave} on:change={autoSave}>
-  <div class="savedind" class:show={saved}>Saved ✓</div>
   <div class="content">
   <div class="grid">
     <div class="card">
@@ -289,14 +287,6 @@
 <style>
   .wrap { height: 100%; padding: 0; }
   .content { padding: 16px; }
-  .savedind {
-    position: fixed; top: 12px; right: 18px; z-index: 20;
-    background: var(--accent-2); color: var(--on-accent);
-    padding: 4px 12px; border-radius: 16px; font-size: 0.8rem;
-    opacity: 0; transform: translateY(-6px);
-    transition: opacity 0.2s, transform 0.2s; pointer-events: none;
-  }
-  .savedind.show { opacity: 1; transform: translateY(0); }
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
   .env { grid-column: 1 / -1; }
   h3 { margin: 0 0 12px; }

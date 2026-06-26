@@ -5,9 +5,9 @@ import {store} from '../models';
 import {main} from '../models';
 import {config} from '../models';
 
-export function ArchiveRun(arg1:string,arg2:string):Promise<archive.Result>;
+export function ArchiveRun(arg1:string,arg2:string,arg3:boolean):Promise<archive.Result>;
 
-export function ArchiveRunAuto(arg1:string):Promise<archive.Result>;
+export function ArchiveRunAuto(arg1:string,arg2:boolean):Promise<archive.Result>;
 
 export function BringToFront():Promise<void>;
 
@@ -39,7 +39,7 @@ export function MoveQuery(arg1:string,arg2:number):Promise<Array<store.Query>>;
 
 export function OpenRunFolder(arg1:string):Promise<void>;
 
-export function PruneRunDir(arg1:string):Promise<void>;
+export function PruneRunDir(arg1:string,arg2:boolean):Promise<void>;
 
 export function ReplaceAllQueries(arg1:Array<store.Query>):Promise<Array<store.Query>>;
 
@@ -55,7 +55,7 @@ export function SelectOutputDir():Promise<string>;
 
 export function SetSessionPassword(arg1:string,arg2:string):Promise<void>;
 
-export function StartRun():Promise<void>;
+export function StartRun(arg1:boolean,arg2:boolean,arg3:string):Promise<void>;
 
 export function TestConnection(arg1:string):Promise<void>;
 
