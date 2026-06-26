@@ -42,6 +42,7 @@ type Config struct {
 	ZipPasswordMode      string       `json:"zipPasswordMode"` // "none" | "explicit" | "auto"
 	ZipPassword          string       `json:"zipPassword"`     // explicit mode only; stored plaintext
 	DeleteSourcesAfterZip bool        `json:"deleteSourcesAfterZip"`
+	ExcludeVideoFromZip  bool         `json:"excludeVideoFromZip"` // keep run.mp4 out of the archive (and out of prune)
 }
 
 const appDirName = "audit-extractor"

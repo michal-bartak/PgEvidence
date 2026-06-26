@@ -19,6 +19,9 @@ import (
 	"github.com/yeka/zip"
 )
 
+// VideoName is the run recording's filename (must match runner's "run.mp4").
+const VideoName = "run.mp4"
+
 // Result describes a created archive.
 type Result struct {
 	ZipPath   string `json:"zipPath"`
@@ -30,8 +33,9 @@ type Result struct {
 
 // Create zips every file in runDir into <runDir>/<base>.zip, where base is the
 // run-folder name. When password is non-empty the entries are ZipCrypto-encrypted.
-// The output zip and any *.zip / *.zip.pwd files are excluded from the archive.
-func Create(runDir, password string) (string, error) {
+// The output zip and any *.zip / *.zip.pwd files are excluded; when excludeVideo is
+// set the run recording (VideoName) is left out too.
+func Create(runDir, password string, excludeVideo bool) (string, error) {
 	base := filepath.Base(runDir)
 	zipPath := filepath.Join(runDir, base+".zip")
 
@@ -53,6 +57,9 @@ func Create(runDir, password string) (string, error) {
 		}
 		name := e.Name()
 		if strings.HasSuffix(name, ".zip") || strings.HasSuffix(name, ".zip.pwd") {
+			continue
+		}
+		if excludeVideo && name == VideoName {
 			continue
 		}
 		if err := addFile(zw, filepath.Join(runDir, name), name, password); err != nil {
@@ -104,9 +111,11 @@ func GeneratePassword() (string, error) {
 }
 
 // PruneSources deletes every file in runDir except the archive and its .pwd
-// sidecar — used to leave only the ZIP after a successful archive. It refuses to
-// run if the archive is missing or empty, so sources are never lost without a zip.
-func PruneSources(runDir string) error {
+// sidecar — used to leave only the ZIP after a successful archive. When keepVideo
+// is set the run recording (VideoName) is also kept (it was excluded from the zip).
+// It refuses to run if the archive is missing or empty, so sources are never lost
+// without a zip.
+func PruneSources(runDir string, keepVideo bool) error {
 	base := filepath.Base(runDir)
 	zipPath := filepath.Join(runDir, base+".zip")
 	info, err := os.Stat(zipPath)
@@ -123,6 +132,9 @@ func PruneSources(runDir string) error {
 		}
 		name := e.Name()
 		if strings.HasSuffix(name, ".zip") || strings.HasSuffix(name, ".zip.pwd") {
+			continue
+		}
+		if keepVideo && name == VideoName {
 			continue
 		}
 		if err := os.Remove(filepath.Join(runDir, name)); err != nil {

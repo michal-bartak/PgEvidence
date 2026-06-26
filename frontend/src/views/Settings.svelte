@@ -231,6 +231,11 @@
           Delete source files after a successful ZIP (keep only the archive)
           <Hint text="After the archive is confirmed, the loose run files are removed, leaving only the .zip (and .pwd). Only runs when the archive exists." />
         </label>
+        <label class="toggle" style="margin-top:8px;">
+          <input type="checkbox" bind:checked={c.excludeVideoFromZip} disabled={!c.zip} />
+          Exclude the video from the ZIP
+          <Hint text="Large recordings can bloat the archive. When excluded, run.mp4 is left out of the ZIP and kept in the run folder even if 'Delete source files' is on." />
+        </label>
       </div>
     </div>
 

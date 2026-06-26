@@ -256,6 +256,10 @@ decision is made or reversed.
   (it's reproducible input, not tamper-evidence). `DeleteSourcesAfterZip` (default
   off) removes the loose files after a confirmed archive, keeping only the zip;
   `archive.PruneSources` guards against deleting when the zip is missing/empty.
+  `ExcludeVideoFromZip` (default off) keeps `run.mp4` (`archive.VideoName`) out of
+  the zip *and* out of the prune (videos are large / poorly compressible), so the
+  loose `.mp4` survives even with delete-sources on. `Create`/`PruneSources` take
+  the flag; `ArchiveRun`/`ArchiveRunAuto`/`PruneRunDir` read it from config.
 - **Generate the full icon set ourselves.** Wails' macOS `.icns` lacks `@1x`
   sizes (generic icon in Finder/Dock/cmd-tab) and it never builds the Windows
   `.ico`. `scripts/gen_icon.py` emits `.png` + complete `.icns` + `.ico`; `make

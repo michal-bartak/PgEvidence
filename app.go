@@ -278,7 +278,8 @@ func (a *App) SelectFile(title string) (string, error) {
 // ArchiveRun zips the run folder into <runDir>/<name>.zip. A non-empty password
 // ZipCrypto-encrypts the entries; empty means an unencrypted archive.
 func (a *App) ArchiveRun(runDir, password string) (archive.Result, error) {
-	zipPath, err := archive.Create(runDir, password)
+	cfg, _ := config.Load()
+	zipPath, err := archive.Create(runDir, password, cfg.ExcludeVideoFromZip)
 	if err != nil {
 		return archive.Result{}, err
 	}
@@ -296,7 +297,8 @@ func (a *App) ArchiveRunAuto(runDir string) (archive.Result, error) {
 	if err != nil {
 		return archive.Result{}, err
 	}
-	zipPath, err := archive.Create(runDir, pw)
+	cfg, _ := config.Load()
+	zipPath, err := archive.Create(runDir, pw, cfg.ExcludeVideoFromZip)
 	if err != nil {
 		return archive.Result{}, err
 	}
@@ -310,7 +312,8 @@ func (a *App) ArchiveRunAuto(runDir string) (archive.Result, error) {
 // PruneRunDir deletes the loose source files in a run folder, keeping only the
 // ZIP archive (and its .pwd). Safe: it refuses if the archive is missing/empty.
 func (a *App) PruneRunDir(runDir string) error {
-	return archive.PruneSources(runDir)
+	cfg, _ := config.Load()
+	return archive.PruneSources(runDir, cfg.ExcludeVideoFromZip)
 }
 
 // OpenRunFolder reveals a run directory in the OS file manager.

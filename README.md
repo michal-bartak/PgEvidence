@@ -82,6 +82,11 @@ Optionally, **Delete source files after a successful ZIP** (Settings → Archive
 removes the loose files once the archive is written, leaving only the `.zip` (and
 `.pwd`) in the run folder. It only runs after the archive is confirmed present.
 
+**Exclude the video from the ZIP** (Settings → Archive) keeps the recording
+(`run.mp4`) out of the archive — useful because videos are large and compress
+poorly. When set, the `.mp4` is left in the run folder even if *Delete source
+files* is on (so it isn't lost), while everything else still goes into the zip.
+
 ## Prerequisites
 
 - **`psql`** (PostgreSQL client) on your PATH — **required**.
