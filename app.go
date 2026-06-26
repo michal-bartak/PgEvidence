@@ -179,34 +179,19 @@ func (a *App) OpenScreenRecordingSettings() error {
 		"x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture").Start()
 }
 
-// GrantScreenAccess drives the "Grant permission" button. It does exactly ONE of
-// two things, never both: the FIRST time, it shows the system permission prompt
-// (which itself offers an "Open System Settings" button) and registers the app;
-// afterwards the prompt will never reappear, so it opens the Settings pane
-// directly. We persist whether the prompt has been shown, since the TCC API
-// can't distinguish "not yet asked" from "asked and denied".
+// GrantScreenAccess does ONE thing: a real capture attempt that registers the app
+// in the Screen Recording list. It is self-regulating — macOS shows the permission
+// prompt only when status is "not determined" (first ask) and is silent when
+// access was denied. It never opens Settings (the UI offers that as a separate
+// action), so the user never gets both the prompt and Settings at once. There is
+// no public API to query list membership, so we register unconditionally rather
+// than try to detect it.
 func (a *App) GrantScreenAccess() error {
 	if runtime.GOOS != "darwin" {
 		return nil
 	}
-	cfg, err := config.Load()
-	if err != nil {
-		return err
-	}
-	// Always force-register: a real capture attempt is the only reliable way to
-	// get the app into the Screen Recording list, and it's self-regulating — it
-	// shows the system prompt only when status is "not determined" and is silent
-	// otherwise. This also repairs the case where a prior prompt left the app
-	// unlisted, so by the time we open Settings the app is guaranteed to be there.
 	capture.RegisterForScreenAccess()
-	if !cfg.ScreenAccessPrompted {
-		// First ask: the prompt has its own "Open System Settings" button, so
-		// don't also open Settings — that would be the redundant double-action.
-		return config.Update(func(c *config.Config) { c.ScreenAccessPrompted = true })
-	}
-	// Already asked once (no fresh prompt will appear) — open Settings so the
-	// now-listed app can be toggled on.
-	return a.OpenScreenRecordingSettings()
+	return nil
 }
 
 // TestConnection runs `SELECT 1` against the given connection.

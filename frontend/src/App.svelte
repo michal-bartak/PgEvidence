@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { activeTab, cfg, queries, env, runOpts, savedTick, isRunning } from './stores';
-  import { GetConfig, ListQueries, DetectEnvironment, GrantScreenAccess, SaveWindowSize } from '../wailsjs/go/main/App';
+  import { GetConfig, ListQueries, DetectEnvironment, GrantScreenAccess, OpenScreenRecordingSettings, SaveWindowSize } from '../wailsjs/go/main/App';
   import { WindowGetSize } from '../wailsjs/runtime/runtime';
   import { applyTheme } from './theme';
   import Queries from './views/Queries.svelte';
@@ -73,9 +73,13 @@
   ];
 
   async function grantScreen() {
-    // Backend decides: first time shows the system prompt (which itself offers
-    // "Open System Settings"); afterwards it opens the Settings pane. Never both.
+    // Triggers the system prompt (first ask) and registers the app in the Screen
+    // Recording list. Silent if access was already denied — in that case use the
+    // separate "Open Settings" button. Never opens Settings itself (no both-at-once).
     await GrantScreenAccess();
+  }
+  async function openScreenSettings() {
+    await OpenScreenRecordingSettings();
   }
   // Temporary, non-persisted dismissal — restored on next app launch.
   let screenBannerHidden = false;
@@ -118,7 +122,10 @@
   {#if $env && !$env.screenAccess && !screenBannerHidden}
     <div class="banner warn">
       <strong>macOS may not have granted Screen Recording.</strong>
-      <button class="bbtn" on:click={grantScreen}>Grant permission…</button>
+      <button class="bbtn" on:click={grantScreen}
+        title="Shows the system permission prompt (first time) and adds the app to the Screen Recording list">Grant permission…</button>
+      <button class="bbtn" on:click={openScreenSettings}
+        title="Open Privacy & Security → Screen Recording to toggle the app on">Open Settings…</button>
       <button class="bclose" title="Hide until next launch" aria-label="Hide"
         on:click={() => (screenBannerHidden = true)}>✕</button>
     </div>
