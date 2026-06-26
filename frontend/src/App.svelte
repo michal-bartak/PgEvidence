@@ -63,7 +63,7 @@
       <strong>macOS may not have granted Screen Recording.</strong>
       The app still tries to capture; if screenshots fail, grant it here.
       Ad-hoc-signed builds can need re-granting after each rebuild.
-      <button class="ghost mini" on:click={grantScreen}>Grant permission…</button>
+      <button class="bbtn" on:click={grantScreen}>Grant permission…</button>
       {#if screenMsg}<span class="note">{screenMsg}</span>{/if}
     </div>
   {/if}
@@ -103,7 +103,11 @@
   .banner { padding: 8px 18px; font-size: 0.85rem; flex: 0 0 auto; }
   .banner.err { background: #3a1f1f; color: #ffc2c2; border-bottom: 1px solid #6b3030; }
   .banner.warn { background: #3a341c; color: #ffe6a3; border-bottom: 1px solid #6b5a2a; display: flex; align-items: center; gap: 10px; }
-  .banner .mini { padding: 3px 10px; font-size: 0.8rem; }
+  /* Banners are always dark, in both themes — style the button light-on-dark
+     explicitly so it isn't invisible in light mode. */
+  .banner .bbtn { padding: 3px 10px; font-size: 0.8rem; border-radius: 6px;
+    background: transparent; border: 1px solid #b9a85f; color: #ffe6a3; }
+  .banner .bbtn:not(:disabled):hover { background: #ffffff22; border-color: #ffe6a3; color: #fff; }
   .banner .note { color: #d8c79a; font-size: 0.8rem; }
   main { flex: 1 1 auto; min-height: 0; overflow: hidden; }
 </style>
