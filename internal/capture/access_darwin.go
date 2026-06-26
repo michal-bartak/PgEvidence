@@ -20,5 +20,12 @@ func HasScreenAccess() bool {
 // returns whether access is granted. Note: a running process must usually be
 // restarted after the user enables it for the grant to take effect.
 func RequestScreenAccess() bool {
-	return bool(C.CGRequestScreenCaptureAccess())
+	granted := bool(C.CGRequestScreenCaptureAccess())
+	// Also make a throwaway `screencapture` attempt so a freshly installed app
+	// actually appears in the Screen Recording list. CGRequest alone is unreliable
+	// at registering an app that captures via the external `screencapture` tool;
+	// a real (even denied) attempt registers it via the responsible-process chain,
+	// matching how a normal run registers it.
+	registerViaScreencapture()
+	return granted
 }

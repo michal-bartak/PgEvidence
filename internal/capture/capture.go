@@ -74,6 +74,25 @@ func screenshotMac(displayIndex int, outPath string) error {
 	return nil
 }
 
+// registerViaScreencapture runs a throwaway, silent `screencapture` so macOS
+// adds the app to the Screen Recording list. A denied attempt is exactly what
+// triggers registration (via the responsible-process chain), so the error and
+// the output file are intentionally discarded. No-op off macOS.
+func registerViaScreencapture() {
+	if runtime.GOOS != "darwin" {
+		return
+	}
+	tmp, err := os.CreateTemp("", "pgevidence-perm-*.png")
+	if err != nil {
+		return
+	}
+	name := tmp.Name()
+	tmp.Close()
+	cmd := exec.Command("/usr/sbin/screencapture", "-x", "-t", "png", "-D", "1", name)
+	_ = cmd.Run()
+	_ = os.Remove(name)
+}
+
 // screenshotCG captures via the cross-platform CoreGraphics/GDI/X11 path.
 func screenshotCG(displayIndex int, outPath string) error {
 	n := screenshot.NumActiveDisplays()
