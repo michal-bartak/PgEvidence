@@ -3,10 +3,11 @@ title: PgEvidence
 description: Screenshot, record, and checksum PostgreSQL query results for auditors
 ---
 
-PgEvidence runs a set of read-only SQL queries against PostgreSQL one by one and
-**takes a screenshot — and optionally a video — of each result as it appears on
-screen**, with the OS clock in frame. Alongside the picture it saves the data as CSV
-and a checksum, so you end up with a set of files you can hand to an auditor.
+PgEvidence runs a set of read-only SQL queries against PostgreSQL one by one. It
+**takes a screenshot of each result as it appears on screen** (with the OS clock in
+frame) and/or **records a video of the whole process**. Alongside, it saves each
+result as CSV with a checksum, so you end up with a set of files you can hand to an
+auditor.
 
 ![PgEvidence running a query](../../assets/screenshot-run.png)
 
