@@ -9,9 +9,12 @@ PgEvidence has three tabs: **Settings**, **Queries**, and **Run**.
 
 Define your database connection(s) — host, port, database, user, SSL mode. **Changes save
 automatically** (there's no Save button). Optionally type a session password (held in memory
-only; empty the field to clear it) or rely on `~/.pgpass`, and use **Test connection** to
-verify. You can also choose the **theme** (System / Light / Dark) and point the app at a
-custom `psql` or `ffmpeg` binary (blank = auto-detect).
+only; empty the field to clear it) or rely on `.pgpass`
+
+Application tries to autodetect existence of `psql` and `ffmpeg` utilities in the system. though it allows to set the path to these executables, too.
+
+This page allows to setup default behavior for making evidence, like enable screenshots, video recording or zip archiving. These properties can be overriden on the Run page at any time without changing default settings.
+
 
 ![Settings](../../assets/screenshot-settings.png)
 
@@ -30,6 +33,8 @@ Pick the connection from the dropdown, toggle **Screenshots** / **Video** as nee
 **Start run**. Each query runs in order and is shown on screen with its checksum and a result
 preview; the evidence folder opens when the run completes.
 
+![PgEvidence running a query](../../assets/screenshot-run.png)
+
 ## Archiving
 
 Enable **Create a ZIP archive** (Settings → Archive). Password protection can be **none**,
@@ -45,3 +50,5 @@ cd audit-run-YYYYMMDD-HHMMSS
 sha256sum -c *.csv.sha256          # every CSV result
 sha256sum -c manifest.json.sha256  # the run manifest
 ```
+
+Popular file managers such as Total Commander and Double Commander can verify `.sha256` files, either individually or in batches.

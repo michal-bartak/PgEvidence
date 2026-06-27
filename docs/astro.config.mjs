@@ -26,6 +26,7 @@ export default defineConfig({
         { label: 'Usage', link: '/usage/' },
         { label: 'Troubleshooting', link: '/troubleshooting/' },
         { label: 'Building from source', link: '/building/' },
+        { label: 'Credits', link: '/credits/' },
       ],
     }),
   ],

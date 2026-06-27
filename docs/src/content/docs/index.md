@@ -9,36 +9,47 @@ frame) and/or **records a video of the whole process**. Alongside, it saves each
 result as CSV with a checksum, so you end up with a set of files you can hand to an
 auditor.
 
+:::note[Requirments]{icon="information"}
+* `psql` - the PostgreSQL client, used to run queries against the database
+* `ffmpg` - used for screen video recording (optional)
+:::
+
+## Highlights
+
+- Excutes SQL queries, generates and stores results in one go
+- Creates fullscreen screenshots and/or video recording from the process
+- Creates `sha256sum` hash for result files
+- Import/Export SQL queries. Import from plain text.
+- System aware light and dark theme
+
 ![PgEvidence running a query](../../assets/screenshot-run.png)
 
 ## Results
 
-Each run writes a timestamped folder. Per query (`NNNN_<slug>`):
+Each run creates a timestamped folder `audit-run-YYYYMMDD-HHmmSS`, then locate result files within it.
 
-- `NNNN_<slug>.png` — full-screen screenshot of the result, including the OS clock
-- `NNNN_<slug>.csv` — the result rows, via `psql`
+For each query identified by `NNNN_<slug>`, the program creates following result files:
+
+- `NNNN_<slug>.png` — full-screen screenshot of the result, including the OS clock (optional)
+- `NNNN_<slug>.csv` — the result rows in csv format
 - `NNNN_<slug>.csv.sha256` — SHA-256 checksum of the CSV (`sha256sum` format)
-- `NNNN_<slug>.sql` — the query text (optional)
+- `NNNN_<slug>.sql` — the query (optional)
 
-Plus, per run:
+In addition to them:
 
 - `run.mp4` — screen recording of the whole run (optional)
-- `manifest.json` + `manifest.json.sha256` — run summary and its checksum
-- `<run>.zip` (+ `.zip.pwd`) — optional archive of everything above
+- `manifest.json` - run summary
+- `manifest.json.sha256` — checksum of the file above (`sha256sum` format)
+- `<run>.zip` (+ `.zip.pwd`) — archive of everything above (optional)
 
+:::tip
+Result files may be optionally removed after ZIP creation.
+:::
+
+:::note[Did you know?]{icon="question-circle"}
 Verify any file with `sha256sum -c <name>.sha256`. The sidecars use the standard
 `sha256sum` (GNU coreutils) text format, so file managers like **Total Commander**
-or **Double Commander** can check them too.
-
-## Highlights
-
-- Screenshot and/or video of the process
-- Signs result files with a hash, stored in a standard format
-- Import multiple SQL queries from pasted text
-- Uses the system `psql` to retrieve results
-
-:::note
-Requires the PostgreSQL client (`psql`) on the machine running the app.
+or **Double Commander** can check them too
 :::
 
 See [Installation](/PgEvidence/installation/) and [Usage](/PgEvidence/usage/).

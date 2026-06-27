@@ -28,12 +28,12 @@ already-running process.
 
 ## macOS won't open the app ("unidentified developer")
 
-The app is unsigned (Gatekeeper). Either download the DMG with `curl -LJO <url>` (no quarantine
-flag is set), or run once:
-
-```bash
-xattr -d com.apple.quarantine /Applications/pgevidence.app
-```
+The app is published as unsigned. If downloaded with use of browser or other program that cooperates in Apple's Gatekeeper program, such a file is marked for quarantine. to avoid that
+* either download the DMG using `curl -LJO <url>`command (no quarantine flag is set), or
+* after installation run once:
+    ```bash
+    xattr -d com.apple.quarantine /Applications/pgevidence.app
+    ```
 
 ## "psql not found"
 
