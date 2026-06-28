@@ -44,8 +44,18 @@ func screenshotPortal(ctx context.Context, outPath string) error {
 		return fmt.Errorf("dbus hello: %w", err)
 	}
 
-	// Subscribe to Request.Response before calling, so we can't miss the reply.
+	token := fmt.Sprintf("pgevidence_%d_%d", os.Getpid(), atomic.AddUint64(&portalSeq, 1))
+
+	// The portal emits Response on a path derived from OUR bus name + token, which
+	// often differs from the handle the method returns. Compute that predicted path
+	// and match on it (the spec-recommended way) — matching the returned handle is
+	// unreliable and was causing us to ignore the reply and stall until timeout.
+	sender := strings.ReplaceAll(strings.TrimPrefix(conn.Names()[0], ":"), ".", "_")
+	wantPath := dbus.ObjectPath("/org/freedesktop/portal/desktop/request/" + sender + "/" + token)
+
+	// Subscribe before calling, so we can't miss the reply.
 	if err := conn.AddMatchSignal(
+		dbus.WithMatchObjectPath(wantPath),
 		dbus.WithMatchInterface("org.freedesktop.portal.Request"),
 		dbus.WithMatchMember("Response"),
 	); err != nil {
@@ -54,7 +64,6 @@ func screenshotPortal(ctx context.Context, outPath string) error {
 	sigCh := make(chan *dbus.Signal, 4)
 	conn.Signal(sigCh)
 
-	token := fmt.Sprintf("pgevidence_%d_%d", os.Getpid(), atomic.AddUint64(&portalSeq, 1))
 	obj := conn.Object("org.freedesktop.portal.Desktop", "/org/freedesktop/portal/desktop")
 	opts := map[string]dbus.Variant{
 		"handle_token": dbus.MakeVariant(token),
@@ -67,14 +76,14 @@ func screenshotPortal(ctx context.Context, outPath string) error {
 	if call.Err != nil {
 		return fmt.Errorf("portal Screenshot call: %w", call.Err)
 	}
-	if err := call.Store(&handle); err != nil {
-		return fmt.Errorf("portal handle: %w", err)
-	}
+	_ = call.Store(&handle) // handle is informational; we match on wantPath
 
 	for {
 		select {
 		case sig := <-sigCh:
-			if sig.Path != handle || len(sig.Body) < 2 {
+			// Accept the Response on our predicted request path (or the returned
+			// handle, if the portal happens to use it).
+			if (sig.Path != wantPath && sig.Path != handle) || len(sig.Body) < 2 {
 				continue
 			}
 			code, _ := sig.Body[0].(uint32)
