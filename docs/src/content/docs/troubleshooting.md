@@ -54,3 +54,25 @@ run the binary directly, prefix it:
 ```bash
 GDK_BACKEND=x11 pgevidence
 ```
+
+## Linux: screenshot is clipped, or "no screenshot tool succeeded"
+
+On Wayland (e.g. GNOME with fractional/HiDPI scaling) the built-in X11 capture grabs only
+part of the screen, so PgEvidence uses a desktop screenshot tool instead. It tries
+`gnome-screenshot`, then `spectacle` (KDE), then `grim` (wlroots). The `.deb`/`.rpm`
+packages depend on `gnome-screenshot`; if you installed another way or use a different
+desktop, install one of those tools:
+
+```bash
+sudo dnf install gnome-screenshot     # Fedora / GNOME
+sudo apt install gnome-screenshot     # Debian / Ubuntu
+```
+
+On a genuine **X11** session the built-in capture is used and no extra tool is needed.
+
+## Linux: recorded video is black (Wayland)
+
+Screen **recording** (the optional MP4) currently uses `x11grab`, which produces a black
+video under Wayland (only the cursor shows). Use the **screenshots** (the primary evidence)
+instead, or run the app in an **X11/Xorg** session for video. Native Wayland recording is a
+known limitation.

@@ -318,7 +318,7 @@
   .chip.ro { border-color: #3a5a3a; color: var(--ok); }
   .progress { font-size: 0.9rem; color: var(--muted); }
   .qcount { font-size: 0.85rem; color: var(--muted); }
-  .connsel { width: auto; height: 30px; padding: 0 8px; font-size: 0.85rem; }
+  .connsel { width: auto; height: 30px; padding: 0 26px 0 8px; font-size: 0.85rem; background-position: right 8px center; }
   .vidwrap { display: inline-flex; }
   .toggle { padding: 3px 11px; font-size: 0.78rem; border-radius: 20px; }
   .toggle.on { background: var(--accent-2); border-color: var(--accent-2); color: var(--on-accent); }

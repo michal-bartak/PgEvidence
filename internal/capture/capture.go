@@ -35,8 +35,11 @@ func Screenshot(displayIndex int, outPath string) error {
 	if displayIndex < 0 {
 		displayIndex = 0
 	}
-	if runtime.GOOS == "darwin" {
+	switch runtime.GOOS {
+	case "darwin":
 		return screenshotMac(displayIndex, outPath)
+	case "linux":
+		return screenshotLinux(displayIndex, outPath)
 	}
 	return screenshotCG(displayIndex, outPath)
 }
@@ -99,6 +102,62 @@ func registerViaScreencapture() {
 	cmd := exec.Command("/usr/sbin/screencapture", "-x", "-t", "png", "-D", "1", name)
 	_ = cmd.Run()
 	_ = os.Remove(name)
+}
+
+// linuxShotTool is a desktop screenshot CLI tried on Linux; args places outPath last.
+type linuxShotTool struct {
+	bin  string
+	args func(out string) []string
+}
+
+// linuxShotTools are tried in order; the first one found on PATH that writes a
+// valid PNG wins. gnome-screenshot (GNOME), spectacle (KDE), grim (wlroots).
+var linuxShotTools = []linuxShotTool{
+	{"gnome-screenshot", func(out string) []string { return []string{"-f", out} }},
+	{"spectacle", func(out string) []string { return []string{"-b", "-n", "-f", "-o", out} }},
+	{"grim", func(out string) []string { return []string{out} }},
+}
+
+// screenshotLinux captures the full screen with a compositor-native screenshot
+// tool. The kbinani/X11 path (screenshotCG) clips under GNOME Wayland + fractional
+// scaling — XWayland reports a scaled root geometry, so only a sub-region is
+// captured. A native tool captures the real physical screen (incl. the top-bar
+// clock). If no tool is available or all fail, fall back to the X11 path, which
+// still works on a genuine X11 session.
+//
+// These tools capture the whole desktop, not a single monitor by index, so
+// displayIndex is not honoured here (multi-monitor selection on Wayland is out of
+// scope); the kbinani fallback still uses it.
+func screenshotLinux(displayIndex int, outPath string) error {
+	var lastErr error
+	for _, t := range linuxShotTools {
+		bin, err := exec.LookPath(t.bin)
+		if err != nil {
+			continue
+		}
+		cmd := exec.Command(bin, t.args(outPath)...)
+		var stderr bytes.Buffer
+		cmd.Stderr = &stderr
+		if err := cmd.Run(); err != nil {
+			lastErr = fmt.Errorf("%s: %v %s", t.bin, err, strings.TrimSpace(stderr.String()))
+			os.Remove(outPath)
+			continue
+		}
+		if info, serr := os.Stat(outPath); serr != nil || info.Size() < 1024 {
+			lastErr = fmt.Errorf("%s produced no usable image", t.bin)
+			os.Remove(outPath)
+			continue
+		}
+		return nil
+	}
+	// No native tool worked — fall back to the X11/kbinani path (fine on X11).
+	if err := screenshotCG(displayIndex, outPath); err != nil {
+		if lastErr != nil {
+			return fmt.Errorf("no Wayland-capable screenshot tool succeeded (%v); install gnome-screenshot. X11 fallback also failed: %w", lastErr, err)
+		}
+		return err
+	}
+	return nil
 }
 
 // screenshotCG captures via the cross-platform CoreGraphics/GDI/X11 path.

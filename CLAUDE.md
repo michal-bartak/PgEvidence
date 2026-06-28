@@ -178,8 +178,25 @@ Module path is `pgevidence`; internal packages import as `pgevidence/internal/..
   drives a warning banner + "Grant permission" button in `App.svelte`. NOTE: TCC
   grants don't apply to an already-running process — the app must be **quit and
   reopened** after enabling. Non-darwin stubs in `access_other.go` return true.
-- Linux/Windows use the kbinani path (X11/GDI); `isBlank` guards all-black captures.
-  Linux Wayland may need a portal.
+- **Windows uses the kbinani path (GDI); `isBlank` guards all-black captures.**
+- **Linux screenshots shell out to a desktop tool, NOT kbinani.** The app runs under
+  XWayland (`GDK_BACKEND=x11`); the kbinani X11 path *clips* under GNOME Wayland with
+  fractional scaling (XWayland reports a scaled root geometry → only a sub-region is
+  captured). `capture.screenshotLinux` instead tries `gnome-screenshot -f` (GNOME),
+  `spectacle -b -n -f -o` (KDE), `grim` (wlroots) in order — first one on PATH that
+  writes a valid PNG wins — and falls back to the kbinani X11 path (which still works
+  on a genuine X11 session). These tools capture the whole desktop, so `MonitorIndex`
+  is not honoured on Linux (the kbinani fallback still uses it). `gnome-screenshot` is
+  a deb/rpm dependency so the GNOME path works out of the box. **Video (ffmpeg
+  x11grab) is still black on Wayland — open TODO** (XWayland black framebuffer; the
+  cursor overlay still draws). Likely fix: detect Wayland + skip/warn, or
+  xdg-desktop-portal/PipeWire.
+- **`<select>` needs `appearance:none` + a custom chevron** (in `style.css`), or
+  WebKitGTK on Linux renders the native GTK combo: system background, native popup,
+  and GTK's own text centering that ignores our `height`. macOS/Windows respect the
+  CSS without it. The chevron is a data-URI SVG whose stroke is set per theme (`:root`
+  vs `:root[data-theme="light"]`) since `url()` can't use a CSS var. Same root cause
+  as the checkbox fix.
 - **PATH for GUI-launched apps:** a Finder/Launchpad-launched `.app` inherits only
   a minimal PATH (`/usr/bin:/bin:/usr/sbin:/sbin`), so `exec.LookPath("psql")` fails
   even though `wails dev` (terminal-launched) finds it. `psql.binary()` therefore

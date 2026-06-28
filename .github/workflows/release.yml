@@ -288,6 +288,7 @@ jobs:
             --depends libwebkit2gtk-4.1-0 \
             --depends postgresql-client \
             --depends xdg-utils \
+            --depends gnome-screenshot \
             --architecture amd64 \
             --package "$output-v$version-linux-amd64.deb" \
             "$binary=/usr/bin/$output" \
@@ -305,6 +306,7 @@ jobs:
             --depends webkit2gtk4.1 \
             --depends postgresql \
             --depends xdg-utils \
+            --depends gnome-screenshot \
             --architecture x86_64 \
             --package "$output-v$version-linux-amd64.rpm" \
             "$binary=/usr/bin/$output" \
