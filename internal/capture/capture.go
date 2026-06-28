@@ -137,25 +137,27 @@ func onWayland() bool {
 func screenshotLinux(ctx context.Context, displayIndex int, outPath string) error {
 	debugf("screenshotLinux: wayland=%v XDG_SESSION_TYPE=%q WAYLAND_DISPLAY=%q",
 		onWayland(), os.Getenv("XDG_SESSION_TYPE"), os.Getenv("WAYLAND_DISPLAY"))
-	if onWayland() {
-		if err := screenshotPortal(ctx, outPath); err != nil {
-			debugf("portal failed: %v; trying X11 fallback", err)
-			// Last resort: try the X11 path (works if XWayland exposes the root),
-			// but surface the portal error since it's the real capture path here.
-			if cgErr := screenshotCG(displayIndex, outPath); cgErr != nil {
-				return fmt.Errorf("portal screenshot failed (%v); X11 fallback also failed: %w", err, cgErr)
+
+	// Preferred: capture the full X11 root at its real size. Silent, and correct at
+	// any scaling on both X11 and XWayland (fixes the fractional-scaling clip).
+	if err := screenshotX11Root(outPath); err == nil {
+		return nil
+	} else {
+		debugf("x11 root capture failed: %v", err)
+		// On Wayland, try the portal next (GNOME may deny it — policy, not a bug).
+		if onWayland() {
+			if perr := screenshotPortal(ctx, outPath); perr == nil {
+				return nil
+			} else {
+				debugf("portal failed: %v", perr)
 			}
+		}
+		// Last resort: kbinani CaptureDisplay (can clip under fractional scaling).
+		if cgErr := screenshotCG(displayIndex, outPath); cgErr != nil {
+			return fmt.Errorf("all Linux capture methods failed: x11root=%v; kbinani=%w", err, cgErr)
 		}
 		return nil
 	}
-	// X11 session: the kbinani path captures the full screen silently.
-	if err := screenshotCG(displayIndex, outPath); err != nil {
-		// If X11 capture somehow fails, try the portal as a fallback.
-		if pErr := screenshotPortal(ctx, outPath); pErr != nil {
-			return fmt.Errorf("X11 screenshot failed (%v); portal fallback also failed: %w", err, pErr)
-		}
-	}
-	return nil
 }
 
 // screenshotCG captures via the cross-platform CoreGraphics/GDI/X11 path.
