@@ -114,14 +114,23 @@ func registerViaScreencapture() {
 type linuxShotTool struct {
 	bin  string
 	args func(out string) []string
+	skip func() bool // optional: skip this tool in environments where it can't work
 }
 
 // linuxShotTools are tried in order; the first one found on PATH that writes a
 // valid PNG wins. gnome-screenshot (GNOME), spectacle (KDE), grim (wlroots).
 var linuxShotTools = []linuxShotTool{
-	{"gnome-screenshot", func(out string) []string { return []string{"-f", out} }},
-	{"spectacle", func(out string) []string { return []string{"-b", "-n", "-f", "-o", out} }},
-	{"grim", func(out string) []string { return []string{out} }},
+	{bin: "gnome-screenshot", args: func(out string) []string { return []string{"-f", out} }},
+	{bin: "spectacle", args: func(out string) []string { return []string{"-b", "-n", "-f", "-o", out} }},
+	// grim only works on wlroots compositors (Sway, Hyprland); on GNOME/Mutter it
+	// can't capture and just hangs until the timeout, so skip it there.
+	{bin: "grim", args: func(out string) []string { return []string{out} }, skip: desktopIsGNOME},
+}
+
+// desktopIsGNOME reports whether the session is GNOME (where grim cannot capture).
+func desktopIsGNOME() bool {
+	d := strings.ToLower(os.Getenv("XDG_CURRENT_DESKTOP") + " " + os.Getenv("XDG_SESSION_DESKTOP"))
+	return strings.Contains(d, "gnome")
 }
 
 // screenshotLinux captures the full screen with a compositor-native screenshot
@@ -137,6 +146,9 @@ var linuxShotTools = []linuxShotTool{
 func screenshotLinux(displayIndex int, outPath string) error {
 	var lastErr error
 	for _, t := range linuxShotTools {
+		if t.skip != nil && t.skip() {
+			continue
+		}
 		bin, err := exec.LookPath(t.bin)
 		if err != nil {
 			continue
