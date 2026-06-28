@@ -292,7 +292,6 @@
   h3 { margin: 0 0 12px; }
   .toggles { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
   .toggle { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--text); font-size: 0.9rem; }
-  .toggle input { width: auto; }
   .toggle.disabled { opacity: 0.55; }
   .disabled-block { opacity: 0.5; }
   .seg { display: inline-flex; border: 1px solid var(--border-strong); border-radius: 8px; overflow: hidden; }

@@ -142,7 +142,7 @@
         placeholder="SELECT ..."></textarea>
       <div class="row" style="margin-top:12px; align-items:center;">
         <label style="margin:0; display:flex; gap:6px; align-items:center;">
-          <input type="checkbox" bind:checked={draft.enabled} style="width:auto;" /> Enabled
+          <input type="checkbox" bind:checked={draft.enabled} /> Enabled
         </label>
         <div class="spacer"></div>
         <button class="primary" on:click={save} disabled={busy}>Save</button>
@@ -195,7 +195,6 @@
   .item.dropover { border-color: var(--accent); box-shadow: inset 0 2px 0 var(--accent); }
   .grip { cursor: grab; color: var(--muted); user-select: none; padding: 0 2px; font-size: 1rem; line-height: 1; }
   .grip:active { cursor: grabbing; }
-  .item input[type="checkbox"] { width: auto; }
   .name { flex: 1; text-align: left; background: transparent; border: none; padding: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .idx { color: var(--muted); margin-right: 4px; }
   .ops { display: flex; gap: 3px; }
