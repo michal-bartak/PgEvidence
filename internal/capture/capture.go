@@ -18,6 +18,13 @@ import (
 	"github.com/kbinani/screenshot"
 )
 
+// debugf writes a capture diagnostic to stderr when PGEVIDENCE_DEBUG is set.
+func debugf(format string, a ...interface{}) {
+	if os.Getenv("PGEVIDENCE_DEBUG") != "" {
+		fmt.Fprintf(os.Stderr, "[capture] "+format+"\n", a...)
+	}
+}
+
 // NumDisplays reports how many active displays the OS exposes.
 func NumDisplays() int {
 	return screenshot.NumActiveDisplays()
@@ -128,8 +135,11 @@ func onWayland() bool {
 // The portal captures the whole desktop, not a single monitor by index, so
 // displayIndex is only honoured by the kbinani path.
 func screenshotLinux(ctx context.Context, displayIndex int, outPath string) error {
+	debugf("screenshotLinux: wayland=%v XDG_SESSION_TYPE=%q WAYLAND_DISPLAY=%q",
+		onWayland(), os.Getenv("XDG_SESSION_TYPE"), os.Getenv("WAYLAND_DISPLAY"))
 	if onWayland() {
 		if err := screenshotPortal(ctx, outPath); err != nil {
+			debugf("portal failed: %v; trying X11 fallback", err)
 			// Last resort: try the X11 path (works if XWayland exposes the root),
 			// but surface the portal error since it's the real capture path here.
 			if cgErr := screenshotCG(displayIndex, outPath); cgErr != nil {

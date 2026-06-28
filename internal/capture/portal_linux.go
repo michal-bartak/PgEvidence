@@ -32,6 +32,7 @@ func screenshotPortal(ctx context.Context, outPath string) error {
 	ctx, cancel := context.WithTimeout(ctx, portalTimeout)
 	defer cancel()
 
+	debugf("portal: connecting to session bus")
 	conn, err := dbus.SessionBusPrivate()
 	if err != nil {
 		return fmt.Errorf("session bus: %w", err)
@@ -43,6 +44,7 @@ func screenshotPortal(ctx context.Context, outPath string) error {
 	if err := conn.Hello(); err != nil {
 		return fmt.Errorf("dbus hello: %w", err)
 	}
+	debugf("portal: connected, bus name=%q", conn.Names()[0])
 
 	token := fmt.Sprintf("pgevidence_%d_%d", os.Getpid(), atomic.AddUint64(&portalSeq, 1))
 
@@ -71,16 +73,19 @@ func screenshotPortal(ctx context.Context, outPath string) error {
 		"modal":        dbus.MakeVariant(false),
 	}
 	var handle dbus.ObjectPath
+	debugf("portal: calling Screenshot, wantPath=%s", wantPath)
 	// CallWithContext so a hung/unanswered portal method can't block forever.
 	call := obj.CallWithContext(ctx, "org.freedesktop.portal.Screenshot.Screenshot", 0, "", opts)
 	if call.Err != nil {
 		return fmt.Errorf("portal Screenshot call: %w", call.Err)
 	}
 	_ = call.Store(&handle) // handle is informational; we match on wantPath
+	debugf("portal: call returned handle=%s; waiting for Response", handle)
 
 	for {
 		select {
 		case sig := <-sigCh:
+			debugf("portal: signal path=%s members=%d", sig.Path, len(sig.Body))
 			// Accept the Response on our predicted request path (or the returned
 			// handle, if the portal happens to use it).
 			if (sig.Path != wantPath && sig.Path != handle) || len(sig.Body) < 2 {
@@ -97,8 +102,10 @@ func screenshotPortal(ctx context.Context, outPath string) error {
 				return fmt.Errorf("portal returned no uri")
 			}
 			uri, _ := uriVar.Value().(string)
+			debugf("portal: got uri=%s", uri)
 			return copyPortalResult(uri, outPath)
 		case <-ctx.Done():
+			debugf("portal: ctx done (timeout/cancel)")
 			return fmt.Errorf("portal screenshot timed out/cancelled after up to %s: %w", portalTimeout, ctx.Err())
 		}
 	}
