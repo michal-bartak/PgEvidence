@@ -176,25 +176,46 @@ func (sc *screenCast) Close() {
 }
 
 // firstStreamNode extracts the first PipeWire node id from a Start response's
-// "streams" field (array of (uint32 node, a{sv} props)).
+// "streams" field, a(ua{sv}). godbus may represent it as [][]interface{} or as
+// []interface{} of []interface{}, so handle both.
 func firstStreamNode(res map[string]dbus.Variant) (uint32, error) {
 	v, ok := res["streams"]
 	if !ok {
 		return 0, fmt.Errorf("screencast: no streams in response")
 	}
-	arr, ok := v.Value().([]interface{})
-	if !ok || len(arr) == 0 {
-		return 0, fmt.Errorf("screencast: empty streams")
+	first, err := firstStreamTuple(v.Value())
+	if err != nil {
+		return 0, err
 	}
-	first, ok := arr[0].([]interface{})
-	if !ok || len(first) < 1 {
-		return 0, fmt.Errorf("screencast: malformed stream")
+	if len(first) < 1 {
+		return 0, fmt.Errorf("screencast: malformed stream tuple")
 	}
 	node, ok := first[0].(uint32)
 	if !ok {
-		return 0, fmt.Errorf("screencast: stream node id not a uint32")
+		return 0, fmt.Errorf("screencast: stream node id is %T, not uint32", first[0])
 	}
 	return node, nil
+}
+
+func firstStreamTuple(val interface{}) ([]interface{}, error) {
+	switch arr := val.(type) {
+	case [][]interface{}:
+		if len(arr) == 0 {
+			return nil, fmt.Errorf("screencast: empty streams")
+		}
+		return arr[0], nil
+	case []interface{}:
+		if len(arr) == 0 {
+			return nil, fmt.Errorf("screencast: empty streams")
+		}
+		first, ok := arr[0].([]interface{})
+		if !ok {
+			return nil, fmt.Errorf("screencast: stream is %T, not a tuple", arr[0])
+		}
+		return first, nil
+	default:
+		return nil, fmt.Errorf("screencast: streams is unexpected type %T", val)
+	}
 }
 
 func sanitizeBusName(name string) string {
