@@ -179,23 +179,22 @@ Module path is `pgevidence`; internal packages import as `pgevidence/internal/..
   grants don't apply to an already-running process — the app must be **quit and
   reopened** after enabling. Non-darwin stubs in `access_other.go` return true.
 - **Windows uses the kbinani path (GDI); `isBlank` guards all-black captures.**
-- **Linux screenshots shell out to a desktop tool, NOT kbinani.** The app runs under
-  XWayland (`GDK_BACKEND=x11`); the kbinani X11 path *clips* under GNOME Wayland with
-  fractional scaling (XWayland reports a scaled root geometry → only a sub-region is
-  captured). `capture.screenshotLinux` instead tries `gnome-screenshot -f` (GNOME),
-  `spectacle -b -n -f -o` (KDE), `grim` (wlroots) in order — first one on PATH that
-  writes a valid PNG wins — and falls back to the kbinani X11 path (which still works
-  on a genuine X11 session). **The screenshot child runs with `GDK_BACKEND` stripped
-  from its env** (`envWithout`): the app itself runs under `GDK_BACKEND=x11` for
-  WebKit, but `gnome-screenshot` honours that var and would then capture the *black
-  XWayland root* instead of using GNOME Shell's real Wayland capture. `grim` is
-  skipped on GNOME (wlroots-only; it hangs on Mutter). These tools capture the whole
-  desktop, so `MonitorIndex`
-  is not honoured on Linux (the kbinani fallback still uses it). `gnome-screenshot` is
-  a deb/rpm dependency so the GNOME path works out of the box. **Video (ffmpeg
-  x11grab) is still black on Wayland — open TODO** (XWayland black framebuffer; the
-  cursor overlay still draws). Likely fix: detect Wayland + skip/warn, or
-  xdg-desktop-portal/PipeWire.
+- **Linux screenshots: xdg-desktop-portal on Wayland, kbinani on X11.** Modern GNOME
+  blocks silent app screen capture. The kbinani X11 path *clips* under fractional
+  scaling (XWayland reports scaled root geometry), and the `gnome-screenshot` CLI is
+  broken on recent GNOME — its `org.gnome.Shell.Screenshot` D-Bus iface was removed,
+  so it falls back to X11, gets a 0×0 root, and errors/hangs. So
+  `capture.screenshotLinux` branches on `onWayland()`: on **Wayland** it calls
+  `screenshotPortal` (`portal_linux.go`, godbus → `org.freedesktop.portal.Screenshot`)
+  — the supported, scaling-correct method that captures the real screen incl. the
+  clock; GNOME may show a permission dialog (inherent to Wayland's security model). On
+  **X11** it uses the kbinani path directly (full + silent). Each path falls back to
+  the other on failure. The portal captures the whole desktop, so `MonitorIndex` is
+  honoured only by the kbinani path. Dependency: `xdg-desktop-portal` (deb/rpm); the
+  GNOME/KDE portal backends ship with the desktop. `portal_other.go` stubs
+  `screenshotPortal` off Linux. **Video (ffmpeg x11grab) is still black on Wayland —
+  open TODO** (XWayland black framebuffer; cursor overlay still draws). Likely fix:
+  PipeWire/portal ScreenCast.
 - **`<select>` needs `appearance:none` + a custom chevron** (in `style.css`), or
   WebKitGTK on Linux renders the native GTK combo: system background, native popup,
   and GTK's own text centering that ignores our `height`. macOS/Windows respect the

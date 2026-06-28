@@ -5,7 +5,6 @@ package capture
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"image"
 	"image/png"
@@ -14,14 +13,9 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/kbinani/screenshot"
 )
-
-// shotToolTimeout bounds each Linux screenshot tool so a blocked/hung tool (e.g.
-// one waiting on a desktop portal that isn't present) can't stall the whole run.
-const shotToolTimeout = 12 * time.Second
 
 // NumDisplays reports how many active displays the OS exposes.
 func NumDisplays() int {
@@ -110,101 +104,39 @@ func registerViaScreencapture() {
 	_ = os.Remove(name)
 }
 
-// linuxShotTool is a desktop screenshot CLI tried on Linux; args places outPath last.
-type linuxShotTool struct {
-	bin  string
-	args func(out string) []string
-	skip func() bool // optional: skip this tool in environments where it can't work
+// onWayland reports whether this is a Wayland session.
+func onWayland() bool {
+	return os.Getenv("WAYLAND_DISPLAY") != "" ||
+		strings.Contains(strings.ToLower(os.Getenv("XDG_SESSION_TYPE")), "wayland")
 }
 
-// linuxShotTools are tried in order; the first one found on PATH that writes a
-// valid PNG wins. gnome-screenshot (GNOME), spectacle (KDE), grim (wlroots).
-var linuxShotTools = []linuxShotTool{
-	{bin: "gnome-screenshot", args: func(out string) []string { return []string{"-f", out} }},
-	{bin: "spectacle", args: func(out string) []string { return []string{"-b", "-n", "-f", "-o", out} }},
-	// grim only works on wlroots compositors (Sway, Hyprland); on GNOME/Mutter it
-	// can't capture and just hangs until the timeout, so skip it there.
-	{bin: "grim", args: func(out string) []string { return []string{out} }, skip: desktopIsGNOME},
-}
-
-// desktopIsGNOME reports whether the session is GNOME (where grim cannot capture).
-func desktopIsGNOME() bool {
-	d := strings.ToLower(os.Getenv("XDG_CURRENT_DESKTOP") + " " + os.Getenv("XDG_SESSION_DESKTOP"))
-	return strings.Contains(d, "gnome")
-}
-
-// envWithout returns the process environment with any VAR=... entry for the given
-// key removed.
-func envWithout(key string) []string {
-	prefix := key + "="
-	src := os.Environ()
-	out := make([]string, 0, len(src))
-	for _, e := range src {
-		if strings.HasPrefix(e, prefix) {
-			continue
-		}
-		out = append(out, e)
-	}
-	return out
-}
-
-// screenshotLinux captures the full screen with a compositor-native screenshot
-// tool. The kbinani/X11 path (screenshotCG) clips under GNOME Wayland + fractional
-// scaling — XWayland reports a scaled root geometry, so only a sub-region is
-// captured. A native tool captures the real physical screen (incl. the top-bar
-// clock). If no tool is available or all fail, fall back to the X11 path, which
-// still works on a genuine X11 session.
+// screenshotLinux captures the full screen. On Wayland the kbinani/X11 path
+// (screenshotCG) is unusable — it clips under fractional scaling (XWayland reports
+// a scaled root geometry) and the desktop deliberately blocks silent X11 capture —
+// so we use the xdg-desktop-portal Screenshot interface, which is the supported,
+// scaling-correct method (GNOME may show a permission dialog; that's inherent to
+// Wayland). On a genuine X11 session the kbinani path works fully and silently, so
+// it's used directly. The portal also serves as a fallback if X11 capture fails.
 //
-// These tools capture the whole desktop, not a single monitor by index, so
-// displayIndex is not honoured here (multi-monitor selection on Wayland is out of
-// scope); the kbinani fallback still uses it.
+// The portal captures the whole desktop, not a single monitor by index, so
+// displayIndex is only honoured by the kbinani path.
 func screenshotLinux(displayIndex int, outPath string) error {
-	var lastErr error
-	for _, t := range linuxShotTools {
-		if t.skip != nil && t.skip() {
-			continue
-		}
-		bin, err := exec.LookPath(t.bin)
-		if err != nil {
-			continue
-		}
-		// Bound each tool: a hung tool (e.g. waiting on a missing portal) must not
-		// stall the run on "capturing screenshot" — kill it and try the next.
-		ctx, cancel := context.WithTimeout(context.Background(), shotToolTimeout)
-		cmd := exec.CommandContext(ctx, bin, t.args(outPath)...)
-		// The app runs under GDK_BACKEND=x11 (for WebKit), but the screenshot tool
-		// must NOT inherit it: gnome-screenshot honours GDK_BACKEND and would then
-		// use its X11 backend, capturing the black XWayland root instead of going
-		// through GNOME Shell's real Wayland capture. Strip it so it runs native.
-		cmd.Env = envWithout("GDK_BACKEND")
-		var stderr bytes.Buffer
-		cmd.Stderr = &stderr
-		runErr := cmd.Run()
-		timedOut := ctx.Err() == context.DeadlineExceeded
-		cancel()
-		if timedOut {
-			lastErr = fmt.Errorf("%s timed out after %s", t.bin, shotToolTimeout)
-			os.Remove(outPath)
-			continue
-		}
-		if runErr != nil {
-			lastErr = fmt.Errorf("%s: %v %s", t.bin, runErr, strings.TrimSpace(stderr.String()))
-			os.Remove(outPath)
-			continue
-		}
-		if info, serr := os.Stat(outPath); serr != nil || info.Size() < 1024 {
-			lastErr = fmt.Errorf("%s produced no usable image", t.bin)
-			os.Remove(outPath)
-			continue
+	if onWayland() {
+		if err := screenshotPortal(outPath); err != nil {
+			// Last resort: try the X11 path (works if XWayland exposes the root),
+			// but surface the portal error since it's the real capture path here.
+			if cgErr := screenshotCG(displayIndex, outPath); cgErr != nil {
+				return fmt.Errorf("portal screenshot failed (%v); X11 fallback also failed: %w", err, cgErr)
+			}
 		}
 		return nil
 	}
-	// No native tool worked — fall back to the X11/kbinani path (fine on X11).
+	// X11 session: the kbinani path captures the full screen silently.
 	if err := screenshotCG(displayIndex, outPath); err != nil {
-		if lastErr != nil {
-			return fmt.Errorf("no Wayland-capable screenshot tool succeeded (%v); install gnome-screenshot. X11 fallback also failed: %w", lastErr, err)
+		// If X11 capture somehow fails, try the portal as a fallback.
+		if pErr := screenshotPortal(outPath); pErr != nil {
+			return fmt.Errorf("X11 screenshot failed (%v); portal fallback also failed: %w", err, pErr)
 		}
-		return err
 	}
 	return nil
 }

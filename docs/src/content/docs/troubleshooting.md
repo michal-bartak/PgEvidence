@@ -55,20 +55,23 @@ run the binary directly, prefix it:
 GDK_BACKEND=x11 pgevidence
 ```
 
-## Linux: screenshot is clipped, or "no screenshot tool succeeded"
+## Linux: screenshots on Wayland
 
-On Wayland (e.g. GNOME with fractional/HiDPI scaling) the built-in X11 capture grabs only
-part of the screen, so PgEvidence uses a desktop screenshot tool instead. It tries
-`gnome-screenshot`, then `spectacle` (KDE), then `grim` (wlroots). The `.deb`/`.rpm`
-packages depend on `gnome-screenshot`; if you installed another way or use a different
-desktop, install one of those tools:
+On Wayland (e.g. GNOME, the Fedora default) the desktop blocks silent screen capture by
+apps, and the built-in X11 capture clips under fractional/HiDPI scaling. PgEvidence therefore
+captures through the **desktop portal** (`xdg-desktop-portal`), the supported method, which
+works at any scaling and includes the top-bar clock. **GNOME may show a permission dialog**
+for the screenshot — that's part of Wayland's security model; allow it.
+
+The `.deb`/`.rpm` packages depend on `xdg-desktop-portal`; the GNOME/KDE portal backend is
+part of the desktop. If capture fails, ensure the portal is installed and running:
 
 ```bash
-sudo dnf install gnome-screenshot     # Fedora / GNOME
-sudo apt install gnome-screenshot     # Debian / Ubuntu
+sudo dnf install xdg-desktop-portal xdg-desktop-portal-gnome   # Fedora / GNOME
 ```
 
-On a genuine **X11** session the built-in capture is used and no extra tool is needed.
+On a genuine **X11/Xorg** session the built-in capture is used instead — full screen and no
+dialog. (Note: `gnome-screenshot` is **not** used; it's broken on recent GNOME.)
 
 ## Linux: recorded video is black (Wayland)
 
