@@ -34,12 +34,50 @@
       const match = $queries.find((q) => q.name === draft!.name && q.sql === draft!.sql);
       selectedId = match ? match.id : selectedId;
       draft = match ? store.Query.createFrom({ ...match }) : draft;
+      flashSaved();
     } catch (e) { error = String(e); }
     busy = false;
   }
 
+  // "Saved" flash on the Save button: solid green for a beat (hold), then the
+  // label flips back as the colour eases to the button's normal accent (fade).
+  // Mirrors the Settings-tab flash.
+  const SAVE_HOLD_MS = 1500;
+  const SAVE_FADE_MS = 700;
+  let saveFlash: '' | 'hold' | 'fade' = '';
+  let sfHold: ReturnType<typeof setTimeout>;
+  let sfFade: ReturnType<typeof setTimeout>;
+  function flashSaved() {
+    clearTimeout(sfHold); clearTimeout(sfFade);
+    saveFlash = 'hold';
+    sfHold = setTimeout(() => {
+      saveFlash = 'fade';
+      sfFade = setTimeout(() => (saveFlash = ''), SAVE_FADE_MS);
+    }, SAVE_HOLD_MS);
+  }
+
   async function toggle(q: store.Query) {
-    try { $queries = await SaveQuery(store.Query.createFrom({ ...q, enabled: !q.enabled })); }
+    const enabled = !q.enabled;
+    try {
+      $queries = await SaveQuery(store.Query.createFrom({ ...q, enabled }));
+      // Keep the editor in sync if this query is open there, and flash its Save
+      // button to confirm the change was persisted.
+      if (draft && selectedId === q.id) { draft.enabled = enabled; draft = draft; flashSaved(); }
+    } catch (e) { error = String(e); }
+  }
+
+  // The editor's Enabled checkbox persists immediately (like the list), so the two
+  // stay in sync. Only the enabled flag is saved (against the stored query), so
+  // unsaved name/SQL edits in the draft aren't committed early. A not-yet-saved
+  // new query just flips locally until Save.
+  async function toggleDraftEnabled() {
+    if (!draft) return;
+    const enabled = !draft.enabled;
+    draft.enabled = enabled; draft = draft;
+    if (!selectedId) return;
+    const stored = $queries.find((q) => q.id === selectedId);
+    if (!stored) return;
+    try { $queries = await SaveQuery(store.Query.createFrom({ ...stored, enabled })); flashSaved(); }
     catch (e) { error = String(e); }
   }
 
@@ -142,10 +180,15 @@
         placeholder="SELECT ..."></textarea>
       <div class="row" style="margin-top:12px; align-items:center;">
         <label style="margin:0; display:flex; gap:6px; align-items:center;">
-          <input type="checkbox" bind:checked={draft.enabled} /> Enabled
+          <input type="checkbox" checked={draft.enabled} on:change={toggleDraftEnabled} /> Enabled
         </label>
         <div class="spacer"></div>
-        <button class="primary" on:click={save} disabled={busy}>Save</button>
+        <button class="primary save" class:flash-hold={saveFlash === 'hold'}
+          class:flash-fade={saveFlash === 'fade'} on:click={save} disabled={busy}>
+          <!-- Sizer holds the wider label ("Saved") so the button never resizes. -->
+          <span class="sizer" aria-hidden="true">Saved</span>
+          <span class="lbl">{saveFlash === 'hold' ? 'Saved' : 'Save'}</span>
+        </button>
       </div>
     {:else}
       <div class="muted empty">Select a query to edit, or add a new one.</div>
@@ -199,6 +242,16 @@
   .idx { color: var(--muted); margin-right: 4px; }
   .ops { display: flex; gap: 3px; }
   .mini { padding: 2px 7px; font-size: 0.8rem; }
+  /* Save-button "Saved" flash: green hold, then ease back to the accent. */
+  .save { position: relative; }
+  .save .sizer { visibility: hidden; }
+  .save .lbl { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+  .save.flash-hold { background: var(--ok); border-color: var(--ok); color: var(--on-accent); }
+  .save.flash-fade { color: var(--on-accent); animation: savedfade 0.7s ease-out forwards; }
+  @keyframes savedfade {
+    0%   { background: var(--ok); border-color: var(--ok); }
+    100% { background: var(--accent-2); border-color: var(--accent-2); }
+  }
   .empty { padding: 24px; text-align: center; }
   .error { color: var(--err); font-size: 0.85rem; margin: 6px 0; }
   textarea { flex: 1; }
