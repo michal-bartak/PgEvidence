@@ -7,6 +7,16 @@
   } from '../../wailsjs/go/main/App';
   import { applyTheme } from '../theme';
   import Hint from '../components/Hint.svelte';
+  import Select from '../components/Select.svelte';
+  import Stepper from '../components/Stepper.svelte';
+
+  const sslModes = ['disable', 'allow', 'prefer', 'require', 'verify-ca', 'verify-full']
+    .map((m) => ({ value: m, label: m }));
+  const zipModes = [
+    { value: 'none', label: 'None — plain ZIP' },
+    { value: 'explicit', label: 'Explicit password' },
+    { value: 'auto', label: 'Auto-generated password' },
+  ];
 
   let password = '';
   let pwStored = false;
@@ -117,9 +127,8 @@
       <div class="row" style="align-items:flex-end;">
         <div class="col">
           <label for="connsel">Active connection</label>
-          <select id="connsel" bind:value={c.selectedConnectionId}>
-            {#each c.connections as x}<option value={x.id}>{x.name}</option>{/each}
-          </select>
+          <Select id="connsel" bind:value={c.selectedConnectionId} on:change={autoSave}
+            options={c.connections.map((x) => ({ value: x.id, label: x.name }))} />
         </div>
         <button class="ghost" on:click={addConnection}>+ Add</button>
         <button class="danger" on:click={removeConnection} disabled={c.connections.length <= 1}>Remove</button>
@@ -131,18 +140,14 @@
           <input id="cname" bind:value={conn.name} />
           <div class="row" style="margin-top:10px;">
             <div class="col"><label for="chost">Host</label><input id="chost" bind:value={conn.host} /></div>
-            <div style="width:110px;"><label for="cport">Port</label><input id="cport" type="number" bind:value={conn.port} /></div>
+            <div style="width:110px;"><label for="cport">Port</label><Stepper id="cport" bind:value={conn.port} on:change={autoSave} /></div>
           </div>
           <div class="row" style="margin-top:10px;">
             <div class="col"><label for="cdb">Database</label><input id="cdb" bind:value={conn.dbName} /></div>
             <div class="col"><label for="cuser">User</label><input id="cuser" bind:value={conn.user} /></div>
           </div>
           <label for="cssl" style="margin-top:10px;">SSL mode</label>
-          <select id="cssl" bind:value={conn.sslMode}>
-            {#each ['disable','allow','prefer','require','verify-ca','verify-full'] as m}
-              <option value={m}>{m}</option>
-            {/each}
-          </select>
+          <Select id="cssl" options={sslModes} bind:value={conn.sslMode} on:change={autoSave} />
 
           <!-- svelte-ignore a11y-label-has-associated-control -->
           <label style="margin-top:12px;">Session password
@@ -171,18 +176,17 @@
       <div class="row" style="margin-top:12px;">
         <div class="col">
           <label for="dwell">Dwell time per query (seconds)</label>
-          <input id="dwell" type="number" min="0" bind:value={c.dwellSeconds} />
+          <Stepper id="dwell" min={0} bind:value={c.dwellSeconds} on:change={autoSave} />
         </div>
         <div class="col">
           <label for="prev">Preview rows on screen</label>
-          <input id="prev" type="number" min="0" bind:value={c.previewRows} />
+          <Stepper id="prev" min={0} bind:value={c.previewRows} on:change={autoSave} />
         </div>
       </div>
 
       <label for="mon" style="margin-top:12px;">Monitor to capture</label>
-      <select id="mon" bind:value={c.monitorIndex}>
-        {#each Array(Math.max(displays, 1)) as _, i}<option value={i}>Display {i}</option>{/each}
-      </select>
+      <Select id="mon" bind:value={c.monitorIndex} on:change={autoSave}
+        options={Array.from({ length: Math.max(displays, 1) }, (_, i) => ({ value: i, label: `Display ${i}` }))} />
 
       <div class="toggles">
         <label class="toggle"><input type="checkbox" bind:checked={c.enforceReadOnly} /> Enforce read-only transactions</label>
@@ -205,11 +209,7 @@
         <label for="zipmode">Password protection
           <Hint text="Encryption uses legacy ZipCrypto — opens with macOS unzip, Windows Explorer and 7-Zip, but is cryptographically weak." />
         </label>
-        <select id="zipmode" bind:value={c.zipPasswordMode} disabled={!c.zip}>
-          <option value="none">None — plain ZIP</option>
-          <option value="explicit">Explicit password</option>
-          <option value="auto">Auto-generated password</option>
-        </select>
+        <Select id="zipmode" options={zipModes} bind:value={c.zipPasswordMode} disabled={!c.zip} on:change={autoSave} />
 
         {#if c.zipPasswordMode === 'explicit'}
           <!-- svelte-ignore a11y-label-has-associated-control -->

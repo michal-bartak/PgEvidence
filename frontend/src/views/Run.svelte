@@ -6,6 +6,7 @@
   import { StartRun, CancelRun, OpenRunFolder, ArchiveRun, ArchiveRunAuto, PruneRunDir } from '../../wailsjs/go/main/App';
   import type { archive } from '../../wailsjs/go/models';
   import Hint from '../components/Hint.svelte';
+  import Select from '../components/Select.svelte';
 
   let running = false;
   // Mirror local run state into the shared store so App.svelte can lock the
@@ -152,9 +153,10 @@
   <div class="bar">
     <div class="ctx">
       {#if $cfg && $runOpts}
-        <select class="connsel" bind:value={$runOpts.connectionId} disabled={running}>
-          {#each $cfg.connections as cn}<option value={cn.id}>{cn.name}</option>{/each}
-        </select>
+        <span class="connsel">
+          <Select compact bind:value={$runOpts.connectionId} disabled={running}
+            options={$cfg.connections.map((cn) => ({ value: cn.id, label: cn.name }))} />
+        </span>
       {/if}
       {#if $cfg?.enforceReadOnly}<span class="chip ro">read-only</span>{/if}
       <button class="toggle" class:on={$runOpts?.screenshots} on:click={toggleScreenshots} disabled={running}>
@@ -318,7 +320,7 @@
   .chip.ro { border-color: #3a5a3a; color: var(--ok); }
   .progress { font-size: 0.9rem; color: var(--muted); }
   .qcount { font-size: 0.85rem; color: var(--muted); }
-  .connsel { width: auto; height: 30px; padding: 0 26px 0 8px; font-size: 0.85rem; background-position: right 8px center; }
+  .connsel { display: inline-block; width: 200px; }
   .vidwrap { display: inline-flex; }
   .toggle { padding: 3px 11px; font-size: 0.78rem; border-radius: 20px; }
   .toggle.on { background: var(--accent-2); border-color: var(--accent-2); color: var(--on-accent); }
