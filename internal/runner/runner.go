@@ -161,7 +161,7 @@ func Run(ctx context.Context, ui UI, p Params) (string, error) {
 		_ = sleepCtx(ctx, 350*time.Millisecond)
 		if p.Cfg.Screenshots {
 			shotFile := stem + ".png"
-			if serr := capture.Screenshot(p.Cfg.MonitorIndex, filepath.Join(runDir, shotFile)); serr != nil {
+			if serr := capture.ScreenshotContext(ctx, p.Cfg.MonitorIndex, filepath.Join(runDir, shotFile)); serr != nil {
 				ui.Emit(EventLog, logMsg("screenshot failed for "+q.Name+": "+serr.Error()))
 			} else {
 				rd.ScreenshotFile = shotFile

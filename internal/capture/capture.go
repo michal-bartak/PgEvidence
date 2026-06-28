@@ -5,6 +5,7 @@ package capture
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"image"
 	"image/png"
@@ -32,6 +33,12 @@ func NumDisplays() int {
 // (the clock and status icons). `screencapture` uses the modern capture path
 // and includes the full menu bar.
 func Screenshot(displayIndex int, outPath string) error {
+	return ScreenshotContext(context.Background(), displayIndex, outPath)
+}
+
+// ScreenshotContext is Screenshot with a cancellation context, so a run's Cancel
+// (and the Linux portal's internal timeout) can interrupt a stuck capture.
+func ScreenshotContext(ctx context.Context, displayIndex int, outPath string) error {
 	if displayIndex < 0 {
 		displayIndex = 0
 	}
@@ -39,7 +46,7 @@ func Screenshot(displayIndex int, outPath string) error {
 	case "darwin":
 		return screenshotMac(displayIndex, outPath)
 	case "linux":
-		return screenshotLinux(displayIndex, outPath)
+		return screenshotLinux(ctx, displayIndex, outPath)
 	}
 	return screenshotCG(displayIndex, outPath)
 }
@@ -120,9 +127,9 @@ func onWayland() bool {
 //
 // The portal captures the whole desktop, not a single monitor by index, so
 // displayIndex is only honoured by the kbinani path.
-func screenshotLinux(displayIndex int, outPath string) error {
+func screenshotLinux(ctx context.Context, displayIndex int, outPath string) error {
 	if onWayland() {
-		if err := screenshotPortal(outPath); err != nil {
+		if err := screenshotPortal(ctx, outPath); err != nil {
 			// Last resort: try the X11 path (works if XWayland exposes the root),
 			// but surface the portal error since it's the real capture path here.
 			if cgErr := screenshotCG(displayIndex, outPath); cgErr != nil {
@@ -134,7 +141,7 @@ func screenshotLinux(displayIndex int, outPath string) error {
 	// X11 session: the kbinani path captures the full screen silently.
 	if err := screenshotCG(displayIndex, outPath); err != nil {
 		// If X11 capture somehow fails, try the portal as a fallback.
-		if pErr := screenshotPortal(outPath); pErr != nil {
+		if pErr := screenshotPortal(ctx, outPath); pErr != nil {
 			return fmt.Errorf("X11 screenshot failed (%v); portal fallback also failed: %w", err, pErr)
 		}
 	}

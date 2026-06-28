@@ -3,6 +3,7 @@
 package capture
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/url"
@@ -14,9 +15,9 @@ import (
 	"github.com/godbus/dbus/v5"
 )
 
-// portalTimeout bounds the whole portal exchange. It is generous because GNOME
-// may show a permission dialog the user has to accept before the capture runs.
-const portalTimeout = 60 * time.Second
+// portalTimeout bounds the whole portal exchange. Long enough to accept a
+// permission dialog, short enough that a stuck/ignored prompt can't hang the run.
+const portalTimeout = 30 * time.Second
 
 var portalSeq uint64
 
@@ -26,7 +27,11 @@ var portalSeq uint64
 // unlike the X11/XWayland path which clips under fractional scaling. The portal
 // writes a PNG and returns its URI; we copy it to outPath. GNOME may prompt for
 // permission — that's inherent to the Wayland security model.
-func screenshotPortal(outPath string) error {
+func screenshotPortal(ctx context.Context, outPath string) error {
+	// Bound the whole exchange and honour the caller's cancellation (run Cancel).
+	ctx, cancel := context.WithTimeout(ctx, portalTimeout)
+	defer cancel()
+
 	conn, err := dbus.SessionBusPrivate()
 	if err != nil {
 		return fmt.Errorf("session bus: %w", err)
@@ -57,7 +62,8 @@ func screenshotPortal(outPath string) error {
 		"modal":        dbus.MakeVariant(false),
 	}
 	var handle dbus.ObjectPath
-	call := obj.Call("org.freedesktop.portal.Screenshot.Screenshot", 0, "", opts)
+	// CallWithContext so a hung/unanswered portal method can't block forever.
+	call := obj.CallWithContext(ctx, "org.freedesktop.portal.Screenshot.Screenshot", 0, "", opts)
 	if call.Err != nil {
 		return fmt.Errorf("portal Screenshot call: %w", call.Err)
 	}
@@ -65,7 +71,6 @@ func screenshotPortal(outPath string) error {
 		return fmt.Errorf("portal handle: %w", err)
 	}
 
-	deadline := time.After(portalTimeout)
 	for {
 		select {
 		case sig := <-sigCh:
@@ -84,8 +89,8 @@ func screenshotPortal(outPath string) error {
 			}
 			uri, _ := uriVar.Value().(string)
 			return copyPortalResult(uri, outPath)
-		case <-deadline:
-			return fmt.Errorf("portal screenshot timed out after %s", portalTimeout)
+		case <-ctx.Done():
+			return fmt.Errorf("portal screenshot timed out/cancelled after up to %s: %w", portalTimeout, ctx.Err())
 		}
 	}
 }
