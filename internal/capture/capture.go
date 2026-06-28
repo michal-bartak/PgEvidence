@@ -5,6 +5,7 @@ package capture
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"image"
 	"image/png"
@@ -13,9 +14,14 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/kbinani/screenshot"
 )
+
+// shotToolTimeout bounds each Linux screenshot tool so a blocked/hung tool (e.g.
+// one waiting on a desktop portal that isn't present) can't stall the whole run.
+const shotToolTimeout = 12 * time.Second
 
 // NumDisplays reports how many active displays the OS exposes.
 func NumDisplays() int {
@@ -135,11 +141,22 @@ func screenshotLinux(displayIndex int, outPath string) error {
 		if err != nil {
 			continue
 		}
-		cmd := exec.Command(bin, t.args(outPath)...)
+		// Bound each tool: a hung tool (e.g. waiting on a missing portal) must not
+		// stall the run on "capturing screenshot" — kill it and try the next.
+		ctx, cancel := context.WithTimeout(context.Background(), shotToolTimeout)
+		cmd := exec.CommandContext(ctx, bin, t.args(outPath)...)
 		var stderr bytes.Buffer
 		cmd.Stderr = &stderr
-		if err := cmd.Run(); err != nil {
-			lastErr = fmt.Errorf("%s: %v %s", t.bin, err, strings.TrimSpace(stderr.String()))
+		runErr := cmd.Run()
+		timedOut := ctx.Err() == context.DeadlineExceeded
+		cancel()
+		if timedOut {
+			lastErr = fmt.Errorf("%s timed out after %s", t.bin, shotToolTimeout)
+			os.Remove(outPath)
+			continue
+		}
+		if runErr != nil {
+			lastErr = fmt.Errorf("%s: %v %s", t.bin, runErr, strings.TrimSpace(stderr.String()))
 			os.Remove(outPath)
 			continue
 		}
