@@ -32,6 +32,23 @@ func screenshotPortal(ctx context.Context, outPath string) error {
 	ctx, cancel := context.WithTimeout(ctx, portalTimeout)
 	defer cancel()
 
+	// Watchdog: the D-Bus connection setup (SessionBusPrivate/Auth/Hello/AddMatch)
+	// isn't context-aware and can block in a broken session env (e.g. launched from
+	// an IDE's sandboxed integrated terminal). Run the whole exchange in a goroutine
+	// and return on ctx timeout/cancel so a stuck bus can never hang the run. A
+	// blocked goroutine may linger, but only in such pathological envs (one per
+	// capture) — far better than stalling.
+	done := make(chan error, 1)
+	go func() { done <- portalCapture(ctx, outPath) }()
+	select {
+	case err := <-done:
+		return err
+	case <-ctx.Done():
+		return fmt.Errorf("portal screenshot timed out/cancelled after up to %s: %w", portalTimeout, ctx.Err())
+	}
+}
+
+func portalCapture(ctx context.Context, outPath string) error {
 	debugf("portal: connecting to session bus")
 	conn, err := dbus.SessionBusPrivate()
 	if err != nil {

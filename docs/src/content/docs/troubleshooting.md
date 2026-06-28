@@ -57,11 +57,10 @@ GDK_BACKEND=x11 pgevidence
 
 ## Linux: screenshots on Wayland
 
-On Wayland (e.g. GNOME, the Fedora default) the desktop blocks silent screen capture by
-apps, and the built-in X11 capture clips under fractional/HiDPI scaling. PgEvidence therefore
-captures through the **desktop portal** (`xdg-desktop-portal`), the supported method, which
-works at any scaling and includes the top-bar clock. **GNOME may show a permission dialog**
-for the screenshot — that's part of Wayland's security model; allow it.
+On Wayland (e.g. GNOME, the Fedora default) the built-in X11 capture clips under
+fractional/HiDPI scaling, so PgEvidence captures through the **desktop portal**
+(`xdg-desktop-portal`) — the supported method, which works at any scaling and includes the
+top-bar clock. Depending on your desktop, the portal may show a one-time permission prompt.
 
 The `.deb`/`.rpm` packages depend on `xdg-desktop-portal`; the GNOME/KDE portal backend is
 part of the desktop. If capture fails, ensure the portal is installed and running:
@@ -70,8 +69,17 @@ part of the desktop. If capture fails, ensure the portal is installed and runnin
 sudo dnf install xdg-desktop-portal xdg-desktop-portal-gnome   # Fedora / GNOME
 ```
 
-On a genuine **X11/Xorg** session the built-in capture is used instead — full screen and no
+On a genuine **X11/Xorg** session the built-in capture is used instead — full screen, no
 dialog. (Note: `gnome-screenshot` is **not** used; it's broken on recent GNOME.)
+
+**Launch from the app icon (or a normal terminal).** Running PgEvidence from an IDE's
+integrated terminal (VS Code, GitKraken) can stall capture, because those apps pass a
+sandboxed/modified session environment to the portal. Launched normally it works; capture
+now also times out instead of hanging if the session bus is unreachable.
+
+**The screen flashes on each capture.** That's GNOME's own screenshot flash; it happens
+after the image is taken, so it is **not** in the saved PNG. To suppress it, disable
+animations globally: `gsettings set org.gnome.desktop.interface enable-animations false`.
 
 ## Linux: recorded video is black (Wayland)
 

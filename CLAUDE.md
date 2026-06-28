@@ -179,19 +179,26 @@ Module path is `pgevidence`; internal packages import as `pgevidence/internal/..
   grants don't apply to an already-running process — the app must be **quit and
   reopened** after enabling. Non-darwin stubs in `access_other.go` return true.
 - **Windows uses the kbinani path (GDI); `isBlank` guards all-black captures.**
-- **Linux screenshots: xdg-desktop-portal on Wayland, kbinani on X11.** Modern GNOME
-  blocks silent app screen capture. The kbinani X11 path *clips* under fractional
-  scaling (XWayland reports scaled root geometry), and the `gnome-screenshot` CLI is
-  broken on recent GNOME — its `org.gnome.Shell.Screenshot` D-Bus iface was removed,
-  so it falls back to X11, gets a 0×0 root, and errors/hangs. So
-  `capture.screenshotLinux` branches on `onWayland()`: on **Wayland** it calls
-  `screenshotPortal` (`portal_linux.go`, godbus → `org.freedesktop.portal.Screenshot`)
-  — the supported, scaling-correct method that captures the real screen incl. the
-  clock; GNOME may show a permission dialog (inherent to Wayland's security model). On
-  **X11** it uses the kbinani path directly (full + silent). Each path falls back to
-  the other on failure. The portal captures the whole desktop, so `MonitorIndex` is
-  honoured only by the kbinani path. Dependency: `xdg-desktop-portal` (deb/rpm); the
-  GNOME/KDE portal backends ship with the desktop. `portal_other.go` stubs
+- **Linux screenshots: xdg-desktop-portal on Wayland, kbinani on X11.** The kbinani
+  X11 path *clips* under fractional scaling (XWayland reports scaled root geometry),
+  and the `gnome-screenshot` CLI is broken on recent GNOME (its
+  `org.gnome.Shell.Screenshot` D-Bus iface was removed → it gets a 0×0 root and
+  errors). An xgb "capture the X11 root size" attempt was tried and **also clips** —
+  dead end, reverted. So `capture.screenshotLinux` branches on `onWayland()`: on
+  **Wayland** it calls `screenshotPortal` (`portal_linux.go`, godbus →
+  `org.freedesktop.portal.Screenshot`) — the supported, scaling-correct method that
+  captures the real screen incl. the clock; on **X11** it uses the kbinani path
+  (full + silent). Each falls back to the other. Key details: match the portal
+  `Request.Response` on the **predicted** request path (`/…/request/<bus-name>/<token>`),
+  not the returned handle (which differs → we'd ignore the reply and stall); the
+  whole exchange runs under a **watchdog goroutine** bounded by `portalTimeout` (~30s)
+  so a broken session bus can't hang the run (it does hang in IDE integrated terminals
+  — GitKraken/VS Code — that pass a sandboxed/modified env; **launch from the icon or a
+  normal terminal**). The portal captures the whole desktop, so `MonitorIndex` is
+  honoured only by the kbinani path. GNOME plays its **screenshot flash** after the
+  grab — *not* in the saved image; only suppressible globally via `gsettings set
+  org.gnome.desktop.interface enable-animations false`. Dependency:
+  `xdg-desktop-portal` (deb/rpm); DE ships the backend. `portal_other.go` stubs
   `screenshotPortal` off Linux. **Video (ffmpeg x11grab) is still black on Wayland —
   open TODO** (XWayland black framebuffer; cursor overlay still draws). Likely fix:
   PipeWire/portal ScreenCast.
