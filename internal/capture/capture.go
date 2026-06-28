@@ -133,6 +133,21 @@ func desktopIsGNOME() bool {
 	return strings.Contains(d, "gnome")
 }
 
+// envWithout returns the process environment with any VAR=... entry for the given
+// key removed.
+func envWithout(key string) []string {
+	prefix := key + "="
+	src := os.Environ()
+	out := make([]string, 0, len(src))
+	for _, e := range src {
+		if strings.HasPrefix(e, prefix) {
+			continue
+		}
+		out = append(out, e)
+	}
+	return out
+}
+
 // screenshotLinux captures the full screen with a compositor-native screenshot
 // tool. The kbinani/X11 path (screenshotCG) clips under GNOME Wayland + fractional
 // scaling — XWayland reports a scaled root geometry, so only a sub-region is
@@ -157,6 +172,11 @@ func screenshotLinux(displayIndex int, outPath string) error {
 		// stall the run on "capturing screenshot" — kill it and try the next.
 		ctx, cancel := context.WithTimeout(context.Background(), shotToolTimeout)
 		cmd := exec.CommandContext(ctx, bin, t.args(outPath)...)
+		// The app runs under GDK_BACKEND=x11 (for WebKit), but the screenshot tool
+		// must NOT inherit it: gnome-screenshot honours GDK_BACKEND and would then
+		// use its X11 backend, capturing the black XWayland root instead of going
+		// through GNOME Shell's real Wayland capture. Strip it so it runs native.
+		cmd.Env = envWithout("GDK_BACKEND")
 		var stderr bytes.Buffer
 		cmd.Stderr = &stderr
 		runErr := cmd.Run()

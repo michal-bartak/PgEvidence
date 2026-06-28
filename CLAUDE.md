@@ -185,7 +185,12 @@ Module path is `pgevidence`; internal packages import as `pgevidence/internal/..
   captured). `capture.screenshotLinux` instead tries `gnome-screenshot -f` (GNOME),
   `spectacle -b -n -f -o` (KDE), `grim` (wlroots) in order — first one on PATH that
   writes a valid PNG wins — and falls back to the kbinani X11 path (which still works
-  on a genuine X11 session). These tools capture the whole desktop, so `MonitorIndex`
+  on a genuine X11 session). **The screenshot child runs with `GDK_BACKEND` stripped
+  from its env** (`envWithout`): the app itself runs under `GDK_BACKEND=x11` for
+  WebKit, but `gnome-screenshot` honours that var and would then capture the *black
+  XWayland root* instead of using GNOME Shell's real Wayland capture. `grim` is
+  skipped on GNOME (wlroots-only; it hangs on Mutter). These tools capture the whole
+  desktop, so `MonitorIndex`
   is not honoured on Linux (the kbinani fallback still uses it). `gnome-screenshot` is
   a deb/rpm dependency so the GNOME path works out of the box. **Video (ffmpeg
   x11grab) is still black on Wayland — open TODO** (XWayland black framebuffer; the
