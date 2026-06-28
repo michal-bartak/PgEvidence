@@ -240,3 +240,14 @@ func FFmpegAvailable() bool {
 	_, ok := FFmpegPath()
 	return ok
 }
+
+// RecordingAvailable reports whether a screen-recording backend is present for
+// this session: gst-launch-1.0 on Wayland (ffmpeg can't capture there), otherwise
+// ffmpeg.
+func RecordingAvailable() bool {
+	if runtime.GOOS == "linux" && onWayland() {
+		_, err := exec.LookPath("gst-launch-1.0")
+		return err == nil
+	}
+	return FFmpegAvailable()
+}

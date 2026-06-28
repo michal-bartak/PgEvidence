@@ -81,9 +81,23 @@ now also times out instead of hanging if the session bus is unreachable.
 after the image is taken, so it is **not** in the saved PNG. To suppress it, disable
 animations globally: `gsettings set org.gnome.desktop.interface enable-animations false`.
 
-## Linux: recorded video is black (Wayland)
+## Linux: video recording on Wayland
 
-Screen **recording** (the optional MP4) currently uses `x11grab`, which produces a black
-video under Wayland (only the cursor shows). Use the **screenshots** (the primary evidence)
-instead, or run the app in an **X11/Xorg** session for video. Native Wayland recording is a
-known limitation.
+On Wayland, screen **recording** (the optional MP4) goes through the **ScreenCast portal +
+PipeWire**, encoded by **GStreamer** (ffmpeg can't capture Wayland or read PipeWire). When a
+run with video starts, GNOME shows a **"share your screen" picker once** — choose your
+monitor and click Share. On X11/Xorg and macOS/Windows, ffmpeg is used as before.
+
+It needs `gst-launch-1.0`, a PipeWire source plugin, and an H.264 encoder. If recording
+can't start, the run continues with screenshots and logs why. Install the pieces:
+
+```bash
+# Fedora / GNOME
+sudo dnf install gstreamer1 gstreamer1-plugins-base gstreamer1-plugins-good \
+  pipewire-gstreamer gstreamer1-plugin-openh264
+# Debian / Ubuntu
+sudo apt install gstreamer1.0-tools gstreamer1.0-plugins-base gstreamer1.0-plugins-good \
+  gstreamer1.0-pipewire gstreamer1.0-plugins-ugly
+```
+
+The encoder is auto-detected (`x264enc`, `openh264enc`, or VAAPI `vah264enc`/`vaapih264enc`).

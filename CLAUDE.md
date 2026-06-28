@@ -199,9 +199,23 @@ Module path is `pgevidence`; internal packages import as `pgevidence/internal/..
   grab — *not* in the saved image; only suppressible globally via `gsettings set
   org.gnome.desktop.interface enable-animations false`. Dependency:
   `xdg-desktop-portal` (deb/rpm); DE ships the backend. `portal_other.go` stubs
-  `screenshotPortal` off Linux. **Video (ffmpeg x11grab) is still black on Wayland —
-  open TODO** (XWayland black framebuffer; cursor overlay still draws). Likely fix:
-  PipeWire/portal ScreenCast.
+  `screenshotPortal` off Linux.
+- **Linux video: GStreamer + ScreenCast portal on Wayland, ffmpeg/x11grab on X11.**
+  `ffmpeg -f x11grab` is black on Wayland (XWayland framebuffer) and ffmpeg has no
+  PipeWire input, so `StartRecording` (recorder.go) routes Linux+Wayland to
+  `startRecordingPortal` (`screencast_linux.go`): drive the ScreenCast portal over
+  D-Bus (`CreateSession`→`SelectSources`→`Start`→`OpenPipeWireRemote`, same
+  predicted-path Response matching + watchdog as the screenshot portal), then feed
+  the PipeWire fd (passed to the child via `cmd.ExtraFiles` → fd 3) to
+  `gst-launch-1.0 -e pipewiresrc fd=3 path=<node> ! videoconvert ! <h264enc> !
+  h264parse ! mp4mux ! filesink`. The encoder is runtime-detected (`pickH264Enc`:
+  x264enc → openh264enc → vah264enc → vaapih264enc). `Stop` sends SIGINT so `-e`
+  flushes EOS and the MP4 finalizes, then closes the fd + D-Bus session
+  (`screenCast.Close`). `Start` pops GNOME's source-picker once per run. Needs
+  gstreamer + a PipeWire src plugin + an H.264 encoder (runtime-detected, best-effort:
+  if missing, logged and the run continues with screenshots). `capture.RecordingAvailable`
+  gates on gst-launch (Wayland) vs ffmpeg. `screencast_other.go` stubs it off Linux.
+  X11 sessions and macOS/Windows keep the ffmpeg path.
 - **`<select>` needs `appearance:none` + a custom chevron** (in `style.css`), or
   WebKitGTK on Linux renders the native GTK combo: system background, native popup,
   and GTK's own text centering that ignores our `height`. macOS/Windows respect the

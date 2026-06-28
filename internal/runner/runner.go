@@ -72,7 +72,7 @@ func Run(ctx context.Context, ui UI, p Params) (string, error) {
 	var rec *capture.Recorder
 	videoFile := ""
 	if p.Cfg.Video {
-		if capture.FFmpegAvailable() {
+		if capture.RecordingAvailable() {
 			vf := filepath.Join(runDir, "run.mp4")
 			r, err := capture.StartRecording(vf, p.Cfg.MonitorIndex)
 			if err != nil {
@@ -81,7 +81,7 @@ func Run(ctx context.Context, ui UI, p Params) (string, error) {
 				rec, videoFile = r, vf
 			}
 		} else {
-			ui.Emit(EventLog, logMsg("video requested but ffmpeg is not installed — continuing with screenshots only"))
+			ui.Emit(EventLog, logMsg("video requested but no recording backend is available (ffmpeg, or gstreamer on Wayland) — continuing with screenshots only"))
 		}
 	}
 
