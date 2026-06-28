@@ -172,6 +172,23 @@ select {
 :root[data-theme="light"] select {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4.5l4 4 4-4' fill='none' stroke='%235b6b82' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 }
+/* The <select> *popup* and its <option>s are drawn natively; WebKitGTK ignores
+   color-scheme there and uses the GTK theme (bright in our dark theme). Theme the
+   options explicitly so the dropdown list matches. (The popup's shape/position is
+   OS-native and not fully controllable — differs from macOS by design.) */
+select option {
+  background-color: var(--bg-2);
+  color: var(--text);
+}
+/* Hide the native number spinners: WebKitGTK renders them grayish, ignoring the
+   theme. Fields stay editable by typing (and the +/- aren't needed). */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
+input[type="number"] { -moz-appearance: textfield; }
 /* Placeholder ("cue") text: muted and dimmed so it reads as a hint, not content
    (the default --muted was too bright against the dark input background). */
 input::placeholder, textarea::placeholder { color: var(--muted); opacity: 0.5; }
