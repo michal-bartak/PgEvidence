@@ -158,7 +158,11 @@
             options={$cfg.connections.map((cn) => ({ value: cn.id, label: cn.name }))} />
         </span>
       {/if}
-      {#if $cfg?.enforceReadOnly}<span class="chip ro">read-only</span>{/if}
+      {#if $cfg?.enforceReadOnly}
+        <span class="chip ro">read-only</span>
+      {:else}
+        <span class="chip rw" title="Read-only enforcement is OFF — queries can modify the database">read-write</span>
+      {/if}
       <button class="toggle" class:on={$runOpts?.screenshots} on:click={toggleScreenshots} disabled={running}>
         Screenshots: {$runOpts?.screenshots ? 'on' : 'off'}
       </button>
@@ -318,6 +322,7 @@
   .ctx { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
   .chip { background: var(--bg-3); border: 1px solid var(--border-strong); border-radius: 20px; padding: 3px 11px; font-size: 0.78rem; }
   .chip.ro { border-color: #3a5a3a; color: var(--ok); }
+  .chip.rw { border-color: var(--err); color: var(--err); background: #ff6b6b1a; font-weight: 700; }
   .progress { font-size: 0.9rem; color: var(--muted); }
   .qcount { font-size: 0.85rem; color: var(--muted); }
   .connsel { display: inline-block; width: 200px; }
