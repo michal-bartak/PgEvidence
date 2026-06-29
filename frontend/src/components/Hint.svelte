@@ -1,23 +1,39 @@
 <script lang="ts">
   // A small "?" that reveals help text on hover/focus. The popover is fixed-
   // positioned (computed from the button rect) so it is never clipped by
-  // overflow:hidden containers.
+  // overflow:hidden containers, and clamped to the viewport so it can't stick
+  // out past a window edge (e.g. hints near the right border).
+  import { tick } from 'svelte';
   export let text = '';
   export let label = '?';        // glyph shown in the badge
   export let tone: '' | 'ok' | 'err' = '';
   let open = false;
-  let x = 0;
-  let y = 0;
+  let left = 0;
+  let top = 0;
+  let positioned = false;
   let btn: HTMLButtonElement;
+  let pop: HTMLDivElement;
 
-  function show() {
-    const r = btn.getBoundingClientRect();
-    x = r.left + r.width / 2;
-    y = r.bottom + 6;
+  async function show() {
     open = true;
+    positioned = false;
+    await tick(); // wait for the popover to render so we can measure it
+    if (!btn || !pop) return;
+    const m = 8; // viewport margin
+    const r = btn.getBoundingClientRect();
+    const pw = pop.offsetWidth;
+    const ph = pop.offsetHeight;
+    // Centre on the badge, then clamp horizontally inside the viewport.
+    left = Math.max(m, Math.min(r.left + r.width / 2 - pw / 2, window.innerWidth - pw - m));
+    // Prefer below; flip above if it would overflow the bottom.
+    top = r.bottom + 6;
+    if (top + ph > window.innerHeight - m) top = r.top - ph - 6;
+    if (top < m) top = m;
+    positioned = true;
   }
   function hide() {
     open = false;
+    positioned = false;
   }
 </script>
 
@@ -34,7 +50,7 @@
 ><span class="glyph">{label}</span></button>
 
 {#if open}
-  <div class="pop" style="left:{x}px; top:{y}px;">{text}<slot /></div>
+  <div class="pop" bind:this={pop} style="left:{left}px; top:{top}px; opacity:{positioned ? 1 : 0};">{text}<slot /></div>
 {/if}
 
 <style>
@@ -57,7 +73,7 @@
   .q.ok:hover { color: var(--ok); }
   .q.err:hover { color: var(--err); }
   .pop {
-    position: fixed; transform: translateX(-50%);
+    position: fixed;
     max-width: 280px;
     background: var(--bg-3); color: var(--text);
     border: 1px solid var(--border-strong); border-radius: 8px;
