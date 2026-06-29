@@ -42,6 +42,27 @@ In addition to them:
 - `manifest.json.sha256` — checksum of the file above (`sha256sum` format)
 - `<run>.zip` (+ `.zip.pwd`) — archive of everything above (optional)
 
+<details>
+<summary>Example</summary>
+
+```
+audit-run-20260625-153000/
+  0001_active_users.sql              # the query text (if "Save each query as .sql" is on; no checksum)
+  0001_active_users.csv
+  0001_active_users.csv.sha256
+  0001_active_users.png              # full-screen screenshot (incl. OS clock)
+  0002_orders_last_month.csv
+  0002_orders_last_month.csv.sha256
+  0002_orders_last_month.png
+  manifest.json                      # queries, files, checksums, timings, versions
+  manifest.json.sha256               # checksum over manifest.json
+  run.mp4                            # recorded full screen desktop
+  audit-run-20260625-153000.zip      # archive of the above (if archiving is enabled)
+  audit-run-20260625-153000.zip.pwd  # generated password (auto mode only)
+```
+
+</details>
+
 :::tip
 Result files may be optionally removed after ZIP creation.
 :::
