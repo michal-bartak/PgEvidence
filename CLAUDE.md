@@ -234,12 +234,18 @@ Module path is `pgevidence`; internal packages import as `pgevidence/internal/..
 - `psql` must be installed (PATH or a common location). `ffmpeg` only if video is enabled.
 - Single-monitor capture by default (`config.MonitorIndex`, default 0). A negative
   value = **Auto**: capture the monitor showing the app window, resolved once at run
-  start (`App.resolveMonitorIndex` → `capture.DisplayContaining(windowCenter)`).
-  Auto needs a real window position, which pure Wayland doesn't expose (it falls
-  back to display 0); under the app's XWayland session (`GDK_BACKEND=x11`) it works.
+  start by `App.resolveMonitorIndex`. **macOS resolves this natively** via the
+  CoreGraphics window list (`capture.DisplayContainingWindow`,
+  `monitor_darwin.go`) — Wails' `WindowGetPosition` on macOS is *screen-relative*,
+  not global, so matching it against the global display bounds always picks the main
+  display (the bug that made Auto a no-op on macOS). Elsewhere Auto falls back to the
+  window centre from Wails' position (global on X11/Windows) →
+  `capture.DisplayContaining`; pure Wayland doesn't expose window position so it
+  lands on display 0, but the app's XWayland session (`GDK_BACKEND=x11`) reports it.
   On Wayland the portal grabs every monitor, so the result is cropped to the chosen
   display (see the Linux capture gotcha); the kbinani/X11 path already captures one
-  display directly.
+  display directly. The macOS index is the `CGGetActiveDisplayList` order, matching
+  `screencapture -D`.
 - **Windows: hide the child console window.** Launching a console program
   (`psql.exe`, `ffmpeg.exe`) from a GUI app flashes a shell window on each call.
   Every console child runs through `proc.Hide(cmd)` first — Windows-only, it sets
@@ -456,6 +462,10 @@ decision is made or reversed.
   Added an **Auto** monitor option (`MonitorIndex < 0`): the run resolves it to the
   display under the window centre (`DisplayContaining`), best-effort since pure
   Wayland hides window position (falls back to display 0; works under XWayland).
+  **macOS Auto must resolve natively** (`DisplayContainingWindow`,
+  `monitor_darwin.go`, CoreGraphics window list): Wails' `WindowGetPosition` on
+  macOS is screen-relative, not global, so the generic window-centre path always
+  picked the main display — Auto was a silent no-op there until this native path.
 - Plans of record (newest last): build, polish, ZIP archiving, release packaging,
   theming+Run controls+hints, Settings auto-save/password/tool-paths, and per-run
   Run controls + Settings "Saved" flash — under `~/.claude/plans/`.

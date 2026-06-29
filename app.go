@@ -305,12 +305,19 @@ func (a *App) StartRun(screenshots bool, video bool, connectionID string) error 
 
 // resolveMonitorIndex turns the configured monitor selection into a concrete
 // 0-based display index. A negative value means "Auto": capture the monitor that
-// shows the app window, located by which display contains the window's centre
-// point. It falls back to display 0 when the window position is unavailable
-// (notably pure Wayland, which doesn't expose absolute window coordinates).
+// shows the app window.
+//
+// macOS resolves this natively (CoreGraphics window list, global coordinates),
+// because Wails' WindowGetPosition there is screen-relative, not global, so it
+// can't be matched against the display bounds. Elsewhere we use the window centre
+// from Wails' position (global on X11/Windows). It falls back to display 0 when
+// the position is unavailable (notably pure Wayland, which hides window coords).
 func (a *App) resolveMonitorIndex(idx int) int {
 	if idx >= 0 {
 		return idx
+	}
+	if i, ok := capture.DisplayContainingWindow(); ok {
+		return i
 	}
 	x, y := wruntime.WindowGetPosition(a.ctx)
 	w, h := wruntime.WindowGetSize(a.ctx)
