@@ -5,7 +5,7 @@ package capture
 import (
 	"context"
 	"fmt"
-	"io"
+	"image/png"
 	"net/url"
 	"os"
 	"strings"
@@ -26,8 +26,10 @@ var portalSeq uint64
 // capture on Wayland (GNOME/KDE/wlroots) and is correct at any display scaling,
 // unlike the X11/XWayland path which clips under fractional scaling. The portal
 // writes a PNG and returns its URI; we copy it to outPath. GNOME may prompt for
-// permission — that's inherent to the Wayland security model.
-func screenshotPortal(ctx context.Context, outPath string) error {
+// permission — that's inherent to the Wayland security model. The portal always
+// captures the whole desktop, so the result is cropped to the selected display
+// (displayIndex) before it is written to outPath.
+func screenshotPortal(ctx context.Context, displayIndex int, outPath string) error {
 	// Bound the whole exchange and honour the caller's cancellation (run Cancel).
 	ctx, cancel := context.WithTimeout(ctx, portalTimeout)
 	defer cancel()
@@ -39,7 +41,7 @@ func screenshotPortal(ctx context.Context, outPath string) error {
 	// blocked goroutine may linger, but only in such pathological envs (one per
 	// capture) — far better than stalling.
 	done := make(chan error, 1)
-	go func() { done <- portalCapture(ctx, outPath) }()
+	go func() { done <- portalCapture(ctx, displayIndex, outPath) }()
 	select {
 	case err := <-done:
 		return err
@@ -48,7 +50,7 @@ func screenshotPortal(ctx context.Context, outPath string) error {
 	}
 }
 
-func portalCapture(ctx context.Context, outPath string) error {
+func portalCapture(ctx context.Context, displayIndex int, outPath string) error {
 	debugf("portal: connecting to session bus")
 	conn, err := dbus.SessionBusPrivate()
 	if err != nil {
@@ -120,7 +122,7 @@ func portalCapture(ctx context.Context, outPath string) error {
 			}
 			uri, _ := uriVar.Value().(string)
 			debugf("portal: got uri=%s", uri)
-			return copyPortalResult(uri, outPath)
+			return savePortalResult(uri, displayIndex, outPath)
 		case <-ctx.Done():
 			debugf("portal: ctx done (timeout/cancel)")
 			return fmt.Errorf("portal screenshot timed out/cancelled after up to %s: %w", portalTimeout, ctx.Err())
@@ -128,9 +130,10 @@ func portalCapture(ctx context.Context, outPath string) error {
 	}
 }
 
-// copyPortalResult copies the portal's file:// result PNG to outPath and removes
-// the portal's temp copy.
-func copyPortalResult(uri, outPath string) error {
+// savePortalResult reads the portal's file:// result PNG (the whole desktop),
+// crops it to the selected display, writes it to outPath, and removes the
+// portal's temp copy.
+func savePortalResult(uri string, displayIndex int, outPath string) error {
 	u, err := url.Parse(uri)
 	if err != nil || u.Path == "" {
 		return fmt.Errorf("bad portal uri %q: %v", uri, err)
@@ -140,15 +143,21 @@ func copyPortalResult(uri, outPath string) error {
 	if err != nil {
 		return fmt.Errorf("open portal result: %w", err)
 	}
-	defer in.Close()
+	img, derr := png.Decode(in)
+	in.Close()
+	if derr != nil {
+		return fmt.Errorf("decode portal result: %w", derr)
+	}
+	img = cropToSelectedDisplay(img, displayIndex)
+
 	out, err := os.Create(outPath)
 	if err != nil {
 		return fmt.Errorf("create %s: %w", outPath, err)
 	}
-	if _, err := io.Copy(out, in); err != nil {
+	if err := png.Encode(out, img); err != nil {
 		out.Close()
 		os.Remove(outPath)
-		return fmt.Errorf("copy portal result: %w", err)
+		return fmt.Errorf("encode screenshot: %w", err)
 	}
 	if err := out.Close(); err != nil {
 		os.Remove(outPath)

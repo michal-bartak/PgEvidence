@@ -83,9 +83,9 @@ func (a *App) UpdateTheme(theme string) error {
 
 // --- query management ---------------------------------------------------------
 
-func (a *App) ListQueries() ([]store.Query, error)              { return store.List() }
-func (a *App) SaveQuery(q store.Query) ([]store.Query, error)   { return store.Upsert(q) }
-func (a *App) DeleteQuery(id string) ([]store.Query, error)     { return store.Delete(id) }
+func (a *App) ListQueries() ([]store.Query, error)               { return store.List() }
+func (a *App) SaveQuery(q store.Query) ([]store.Query, error)    { return store.Upsert(q) }
+func (a *App) DeleteQuery(id string) ([]store.Query, error)      { return store.Delete(id) }
 func (a *App) MoveQuery(id string, d int) ([]store.Query, error) { return store.Move(id, d) }
 func (a *App) ReplaceAllQueries(q []store.Query) ([]store.Query, error) {
 	return store.ReplaceAll(q)
@@ -128,9 +128,9 @@ func (a *App) password(connID string) string {
 
 // EnvInfo describes the host environment relevant to a run.
 type EnvInfo struct {
-	PSQLFound   bool   `json:"psqlFound"`
-	PSQLPath    string `json:"psqlPath"`
-	PSQLVersion string `json:"psqlVersion"`
+	PSQLFound    bool   `json:"psqlFound"`
+	PSQLPath     string `json:"psqlPath"`
+	PSQLVersion  string `json:"psqlVersion"`
 	FFmpegFound  bool   `json:"ffmpegFound"`
 	NumDisplays  int    `json:"numDisplays"`
 	ConfigDir    string `json:"configDir"`
@@ -238,6 +238,9 @@ func (a *App) StartRun(screenshots bool, video bool, connectionID string) error 
 	// Per-run overrides (not saved): the Run page is the authority for these.
 	cfg.Screenshots = screenshots
 	cfg.Video = video
+	// Resolve "Auto" (MonitorIndex < 0) to the concrete display showing the app
+	// window, so the rest of the run (screenshots + video) targets one monitor.
+	cfg.MonitorIndex = a.resolveMonitorIndex(cfg.MonitorIndex)
 	if connectionID == "" {
 		connectionID = cfg.SelectedConnectionID
 	}
@@ -298,6 +301,20 @@ func (a *App) StartRun(screenshots bool, video bool, connectionID string) error 
 		}
 	}()
 	return nil
+}
+
+// resolveMonitorIndex turns the configured monitor selection into a concrete
+// 0-based display index. A negative value means "Auto": capture the monitor that
+// shows the app window, located by which display contains the window's centre
+// point. It falls back to display 0 when the window position is unavailable
+// (notably pure Wayland, which doesn't expose absolute window coordinates).
+func (a *App) resolveMonitorIndex(idx int) int {
+	if idx >= 0 {
+		return idx
+	}
+	x, y := wruntime.WindowGetPosition(a.ctx)
+	w, h := wruntime.WindowGetSize(a.ctx)
+	return capture.DisplayContaining(x+w/2, y+h/2)
 }
 
 // CancelRun requests cancellation of the active run.

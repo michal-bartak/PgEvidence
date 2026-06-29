@@ -8,7 +8,9 @@ import (
 	"context"
 	"fmt"
 	"image"
+	"image/draw"
 	"image/png"
+	"math"
 	"os"
 	"os/exec"
 	"runtime"
@@ -132,8 +134,9 @@ func onWayland() bool {
 // Wayland). On a genuine X11 session the kbinani path works fully and silently, so
 // it's used directly. The portal also serves as a fallback if X11 capture fails.
 //
-// The portal captures the whole desktop, not a single monitor by index, so
-// displayIndex is only honoured by the kbinani path.
+// The portal captures the whole desktop (every monitor); we crop its result down
+// to the selected display (cropToSelectedDisplay) so displayIndex is honoured on
+// both paths and a single-monitor selection doesn't leak the other monitors.
 // screenshotLinux captures the full screen. On Wayland the kbinani/X11 path clips
 // under fractional scaling and silent capture is blocked, so we use the
 // xdg-desktop-portal Screenshot interface — the supported, scaling-correct method
@@ -145,7 +148,7 @@ func screenshotLinux(ctx context.Context, displayIndex int, outPath string) erro
 	debugf("screenshotLinux: wayland=%v XDG_SESSION_TYPE=%q WAYLAND_DISPLAY=%q",
 		onWayland(), os.Getenv("XDG_SESSION_TYPE"), os.Getenv("WAYLAND_DISPLAY"))
 	if onWayland() {
-		if err := screenshotPortal(ctx, outPath); err != nil {
+		if err := screenshotPortal(ctx, displayIndex, outPath); err != nil {
 			debugf("portal failed: %v; trying X11 fallback", err)
 			if cgErr := screenshotCG(displayIndex, outPath); cgErr != nil {
 				return fmt.Errorf("portal screenshot failed (%v); X11 fallback also failed: %w", err, cgErr)
@@ -155,7 +158,7 @@ func screenshotLinux(ctx context.Context, displayIndex int, outPath string) erro
 	}
 	// X11 session: the kbinani path captures the full screen silently.
 	if err := screenshotCG(displayIndex, outPath); err != nil {
-		if pErr := screenshotPortal(ctx, outPath); pErr != nil {
+		if pErr := screenshotPortal(ctx, displayIndex, outPath); pErr != nil {
 			return fmt.Errorf("X11 screenshot failed (%v); portal fallback also failed: %w", err, pErr)
 		}
 	}
@@ -203,6 +206,74 @@ func isBlank(img *image.RGBA) bool {
 		}
 	}
 	return true
+}
+
+// DisplayContaining returns the index of the display whose bounds contain the
+// point (x, y) in the OS/virtual-desktop coordinate space (the same space as
+// Wails' WindowGetPosition and kbinani's display bounds). It is used to resolve
+// the "capture the monitor showing the app window" option from the window centre.
+// Falls back to 0 when no display matches (e.g. the point is off-screen, or the
+// platform can't report a real window position — notably pure Wayland).
+func DisplayContaining(x, y int) int {
+	n := screenshot.NumActiveDisplays()
+	pt := image.Pt(x, y)
+	for i := 0; i < n; i++ {
+		if pt.In(screenshot.GetDisplayBounds(i)) {
+			return i
+		}
+	}
+	return 0
+}
+
+// cropToSelectedDisplay crops a full-desktop image down to the bounds of the
+// display at displayIndex. The xdg-desktop-portal Screenshot interface hands us
+// the ENTIRE desktop spanning every monitor; without this, evidence for a
+// single-monitor selection would also leak whatever is on the other monitors.
+//
+// It maps kbinani's virtual-desktop geometry into the captured image's pixel
+// space with a single scale factor per axis. That assumes a uniform display scale
+// (the common case) and self-corrects for any uniform fractional scaling, because
+// the union geometry is reported in the same (scaled) units as each display.
+//
+// It returns the image unchanged whenever cropping can't be done safely — one
+// display, an out-of-range index, missing geometry, or a degenerate crop — always
+// preferring a broad-but-complete capture over a broken one.
+func cropToSelectedDisplay(img image.Image, displayIndex int) image.Image {
+	n := screenshot.NumActiveDisplays()
+	if n <= 1 || displayIndex < 0 || displayIndex >= n {
+		return img
+	}
+	// Union of all displays = the virtual desktop the portal image covers.
+	total := screenshot.GetDisplayBounds(0)
+	for i := 1; i < n; i++ {
+		total = total.Union(screenshot.GetDisplayBounds(i))
+	}
+	if total.Dx() <= 0 || total.Dy() <= 0 {
+		return img
+	}
+	sel := screenshot.GetDisplayBounds(displayIndex)
+	ib := img.Bounds()
+	sx := float64(ib.Dx()) / float64(total.Dx())
+	sy := float64(ib.Dy()) / float64(total.Dy())
+	crop := image.Rect(
+		ib.Min.X+int(math.Round(float64(sel.Min.X-total.Min.X)*sx)),
+		ib.Min.Y+int(math.Round(float64(sel.Min.Y-total.Min.Y)*sy)),
+		ib.Min.X+int(math.Round(float64(sel.Max.X-total.Min.X)*sx)),
+		ib.Min.Y+int(math.Round(float64(sel.Max.Y-total.Min.Y)*sy)),
+	).Intersect(ib)
+	if crop.Dx() <= 0 || crop.Dy() <= 0 {
+		return img
+	}
+	debugf("cropToSelectedDisplay: display=%d total=%v sel=%v img=%v crop=%v",
+		displayIndex, total, sel, ib, crop)
+	if si, ok := img.(interface {
+		SubImage(r image.Rectangle) image.Image
+	}); ok {
+		return si.SubImage(crop)
+	}
+	dst := image.NewRGBA(image.Rect(0, 0, crop.Dx(), crop.Dy()))
+	draw.Draw(dst, dst.Bounds(), img, crop.Min, draw.Src)
+	return dst
 }
 
 // configuredFFmpeg is an optional user-set ffmpeg path (from config); empty = auto.

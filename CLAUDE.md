@@ -194,8 +194,11 @@ Module path is `pgevidence`; internal packages import as `pgevidence/internal/..
   whole exchange runs under a **watchdog goroutine** bounded by `portalTimeout` (~30s)
   so a broken session bus can't hang the run (it does hang in IDE integrated terminals
   — GitKraken/VS Code — that pass a sandboxed/modified env; **launch from the icon or a
-  normal terminal**). The portal captures the whole desktop, so `MonitorIndex` is
-  honoured only by the kbinani path. GNOME plays its **screenshot flash** after the
+  normal terminal**). The portal captures the **whole desktop** (every monitor), so
+  `savePortalResult` crops the result to the selected display via
+  `cropToSelectedDisplay` — otherwise a multi-monitor capture would leak the other
+  screens. Both the portal and kbinani paths therefore honour `MonitorIndex`. GNOME
+  plays its **screenshot flash** after the
   grab — *not* in the saved image; only suppressible globally via `gsettings set
   org.gnome.desktop.interface enable-animations false`. Dependency:
   `xdg-desktop-portal` (deb/rpm); DE ships the backend. `portal_other.go` stubs
@@ -229,7 +232,14 @@ Module path is `pgevidence`; internal packages import as `pgevidence/internal/..
   Windows `Program Files`) via `candidatePaths()`; `capture.FFmpegPath()` does the
   same. All psql calls go through the resolved absolute path.
 - `psql` must be installed (PATH or a common location). `ffmpeg` only if video is enabled.
-- Single-monitor capture by default (`config.MonitorIndex`, default 0).
+- Single-monitor capture by default (`config.MonitorIndex`, default 0). A negative
+  value = **Auto**: capture the monitor showing the app window, resolved once at run
+  start (`App.resolveMonitorIndex` → `capture.DisplayContaining(windowCenter)`).
+  Auto needs a real window position, which pure Wayland doesn't expose (it falls
+  back to display 0); under the app's XWayland session (`GDK_BACKEND=x11`) it works.
+  On Wayland the portal grabs every monitor, so the result is cropped to the chosen
+  display (see the Linux capture gotcha); the kbinani/X11 path already captures one
+  display directly.
 - **Windows: hide the child console window.** Launching a console program
   (`psql.exe`, `ffmpeg.exe`) from a GUI app flashes a shell window on each call.
   Every console child runs through `proc.Hide(cmd)` first — Windows-only, it sets
@@ -435,6 +445,17 @@ decision is made or reversed.
   files + `manifest.json` (a truthful record of what completed), but the frontend
   skips the auto-ZIP on `done.cancelled` (incomplete evidence) — so prune never runs
   either. The Run summary shows "Run cancelled" / "Partial evidence written to:".
+- **Monitor selection is enforced by cropping the Wayland portal capture.** The
+  xdg-desktop-portal Screenshot interface always returns the whole desktop, so a
+  multi-monitor run was leaking every screen regardless of `MonitorIndex` (seen on
+  Fedora + Debian). `cropToSelectedDisplay` maps kbinani's per-display geometry into
+  the captured image's pixels (single scale per axis — self-correcting for uniform
+  fractional scaling, approximate only under mixed per-monitor scale) and crops to
+  the selected display; it returns the full image unchanged when cropping isn't safe
+  (one display, bad geometry, degenerate crop) — broad-but-complete beats broken.
+  Added an **Auto** monitor option (`MonitorIndex < 0`): the run resolves it to the
+  display under the window centre (`DisplayContaining`), best-effort since pure
+  Wayland hides window position (falls back to display 0; works under XWayland).
 - Plans of record (newest last): build, polish, ZIP archiving, release packaging,
   theming+Run controls+hints, Settings auto-save/password/tool-paths, and per-run
   Run controls + Settings "Saved" flash — under `~/.claude/plans/`.
