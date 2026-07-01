@@ -149,6 +149,16 @@ Gotchas: the tag must equal `v$(cat VERSION)` (the `prepare` job enforces it) an
 needs `build:tags: webkit2_41` (in `wails.json`) + `libwebkit2gtk-4.1-dev`. Ships
 unsigned (Gatekeeper/SmartScreen documented in the release notes).
 
+**Release notes = `CHANGELOG.md` section + install instructions + auto notes.** Keep
+`CHANGELOG.md` (Keep a Changelog format) current: move `[Unreleased]` items under a
+new `## [X.Y.Z] - DATE` heading before tagging. The `release` job's "Build release
+notes" step `awk`-extracts the section matching the tag (`v1.2.3` → `## [1.2.3]`,
+stopping at the next `## [` or the link-ref block), stacks it above the static
+install block, and passes the result via `body_path`; `generate_release_notes: true`
+appends GitHub's "What's Changed" PR/commit list after that. A tag with no matching
+CHANGELOG section still releases (install block only). (OSC has no CHANGELOG — it uses
+auto notes + a static body only; this is the one release-notes divergence from it.)
+
 **macOS signing (why `make dist`, not `wails build`):** `wails build` ad-hoc
 signs, and an ad-hoc signature's hash changes every build, so the Screen
 Recording (TCC) grant does NOT persist across rebuilds. Signing with a stable
@@ -466,6 +476,10 @@ decision is made or reversed.
   `monitor_darwin.go`, CoreGraphics window list): Wails' `WindowGetPosition` on
   macOS is screen-relative, not global, so the generic window-centre path always
   picked the main display — Auto was a silent no-op there until this native path.
+- **Maintained `CHANGELOG.md`, injected into release pages.** Added a Keep a Changelog
+  `CHANGELOG.md`; the `release` job extracts the tag's section and stacks it above the
+  install block (`body_path`), with `generate_release_notes` appending GitHub's auto
+  "What's Changed" list. Diverges from OSC (auto notes + static body only, no CHANGELOG).
 - Plans of record (newest last): build, polish, ZIP archiving, release packaging,
   theming+Run controls+hints, Settings auto-save/password/tool-paths, and per-run
   Run controls + Settings "Saved" flash — under `~/.claude/plans/`.

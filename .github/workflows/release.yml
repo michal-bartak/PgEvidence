@@ -323,30 +323,64 @@ jobs:
     needs: [prepare, build]
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.prepare.outputs.tag }}
       - uses: actions/download-artifact@v8
         with:
           pattern: dist-*
           merge-multiple: true
           path: dist
+
+      # Compose the release body: the matching CHANGELOG.md section (if any) on top of
+      # the install instructions. GitHub appends its auto-generated "What's Changed" list
+      # after this via generate_release_notes.
+      - name: Build release notes
+        env:
+          TAG: ${{ needs.prepare.outputs.tag }}
+        run: |
+          version="${TAG#v}"
+          # Extract the "## [<version>] ..." section from CHANGELOG.md (until the next "## [").
+          awk -v ver="$version" '
+            /^## \[/ { if (found) exit; if (index($0, "[" ver "]")) { found=1; next } }
+            /^\[[^]]+\]: / { if (found) exit }
+            found { print }
+          ' CHANGELOG.md > /tmp/changelog-section.md || true
+
+          {
+            if [ -s /tmp/changelog-section.md ]; then
+              echo "## What's Changed in $TAG"
+              echo
+              # strip leading/trailing blank lines from the extracted section
+              sed -e '/./,$!d' -e :a -e '/^\n*$/{$d;N;ba' -e '}' /tmp/changelog-section.md
+              echo
+            fi
+            cat <<EOF
+          ### Installing
+
+          - **macOS:** Open the \`.dmg\`, drag **PgEvidence** to Applications, then eject. The app is unsigned, so Gatekeeper blocks it on first launch:
+            - **Recommended — download with curl** (no quarantine flag is set):
+              \`\`\`
+              curl -LJO https://github.com/michal-bartak/PgEvidence/releases/download/$TAG/pgevidence-$TAG-macos-universal.dmg
+              \`\`\`
+            - **Already downloaded via browser** — run once after dragging to Applications:
+              \`\`\`
+              xattr -d com.apple.quarantine /Applications/pgevidence.app
+              \`\`\`
+            Then grant Screen Recording permission (System Settings → Privacy & Security) for the proof-of-time screenshots, and reopen the app.
+          - **Windows:** Run the \`.msi\`. SmartScreen may warn; choose **More info → Run anyway**.
+          - **Linux (Debian/Ubuntu):** \`sudo apt install ./pgevidence-$TAG-linux-amd64.deb\`
+          - **Linux (Fedora/RHEL):** \`sudo dnf install ./pgevidence-$TAG-linux-amd64.rpm\`
+          EOF
+          } > /tmp/release-body.md
+
+          echo "----- release body -----"
+          cat /tmp/release-body.md
+
       - uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.prepare.outputs.tag }}
           draft: ${{ inputs.draft }}
           generate_release_notes: true
-          body: |
-            ### Installing
-
-            - **macOS:** Open the `.dmg`, drag **PgEvidence** to Applications, then eject. The app is unsigned, so Gatekeeper blocks it on first launch:
-              - **Recommended — download with curl** (no quarantine flag is set):
-                ```
-                curl -LJO https://github.com/michal-bartak/PgEvidence/releases/download/${{ needs.prepare.outputs.tag }}/pgevidence-${{ needs.prepare.outputs.tag }}-macos-universal.dmg
-                ```
-              - **Already downloaded via browser** — run once after dragging to Applications:
-                ```
-                xattr -d com.apple.quarantine /Applications/pgevidence.app
-                ```
-              Then grant Screen Recording permission (System Settings → Privacy & Security) for the proof-of-time screenshots, and reopen the app.
-            - **Windows:** Run the `.msi`. SmartScreen may warn; choose **More info → Run anyway**.
-            - **Linux (Debian/Ubuntu):** `sudo apt install ./pgevidence-${{ needs.prepare.outputs.tag }}-linux-amd64.deb`
-            - **Linux (Fedora/RHEL):** `sudo dnf install ./pgevidence-${{ needs.prepare.outputs.tag }}-linux-amd64.rpm`
+          body_path: /tmp/release-body.md
           files: dist/*
