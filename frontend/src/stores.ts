@@ -34,6 +34,8 @@ export interface ResultPayload {
   name: string;
   sql: string;
   sha256: string;
+  sqlFile: string;
+  sqlFileSha256: string;
   header: string[] | null;
   rows: string[][] | null;
   rowCount: number;

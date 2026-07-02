@@ -111,13 +111,19 @@ func Run(ctx context.Context, ui UI, p Params) (string, error) {
 			Status:     "ok",
 		}
 
-		// Optionally store the query itself next to its result (no checksum).
-		if p.Cfg.SaveQuerySQL {
-			sqlFile := stem + ".sql"
-			if werr := os.WriteFile(filepath.Join(runDir, sqlFile), []byte(q.SQL+"\n"), 0o644); werr != nil {
-				ui.Emit(EventLog, logMsg("could not write .sql for "+q.Name+": "+werr.Error()))
+		// Always store the query itself next to its result, with its own checksum
+		// sidecar — the exact query text is tamper-evidence, like the CSV result.
+		sqlFile := stem + ".sql"
+		sqlPath := filepath.Join(runDir, sqlFile)
+		if werr := os.WriteFile(sqlPath, []byte(q.SQL+"\n"), 0o644); werr != nil {
+			ui.Emit(EventLog, logMsg("could not write .sql for "+q.Name+": "+werr.Error()))
+		} else {
+			rd.SQLFile = sqlFile
+			if sqlSum, sqlSumPath, cerr := checksum.WriteSidecar(sqlPath); cerr != nil {
+				ui.Emit(EventLog, logMsg("could not checksum .sql for "+q.Name+": "+cerr.Error()))
 			} else {
-				rd.SQLFile = sqlFile
+				rd.SQLSHA256 = sqlSum
+				rd.SQLChecksumFile = filepath.Base(sqlSumPath)
 			}
 		}
 
@@ -151,6 +157,7 @@ func Run(ctx context.Context, ui UI, p Params) (string, error) {
 			"sha256": rd.SHA256, "header": header, "rows": rows,
 			"rowCount": rd.RowCount, "status": rd.Status, "error": rd.Error,
 			"durationMs": rd.DurationMS, "resultFile": resultFile,
+			"sqlFile": rd.SQLFile, "sqlFileSha256": rd.SQLSHA256,
 		})
 
 		// Let the UI paint the result, then capture the full screen (which

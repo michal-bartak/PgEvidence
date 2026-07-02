@@ -33,7 +33,8 @@ For each query identified by `NNNN_<slug>`, the program creates following result
 - `NNNN_<slug>.png` — full-screen screenshot of the result, including the OS clock (optional)
 - `NNNN_<slug>.csv` — the result rows in csv format
 - `NNNN_<slug>.csv.sha256` — SHA-256 checksum of the CSV (`sha256sum` format)
-- `NNNN_<slug>.sql` — the query (optional)
+- `NNNN_<slug>.sql` — the query text
+- `NNNN_<slug>.sql.sha256` — SHA-256 checksum of the query (`sha256sum` format)
 
 In addition to them:
 
@@ -47,10 +48,13 @@ In addition to them:
 
 ```
 audit-run-20260625-153000/
-  0001_active_users.sql              # the query text (if "Save each query as .sql" is on; no checksum)
+  0001_active_users.sql              # the query text
+  0001_active_users.sql.sha256       # checksum over the query text
   0001_active_users.csv
   0001_active_users.csv.sha256
   0001_active_users.png              # full-screen screenshot (incl. OS clock)
+  0002_orders_last_month.sql
+  0002_orders_last_month.sql.sha256
   0002_orders_last_month.csv
   0002_orders_last_month.csv.sha256
   0002_orders_last_month.png

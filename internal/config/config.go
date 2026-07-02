@@ -29,27 +29,26 @@ type Connection struct {
 
 // Config is the full persisted application configuration.
 type Config struct {
-	Connections          []Connection `json:"connections"`
-	SelectedConnectionID string       `json:"selectedConnectionId"`
-	DwellSeconds         int          `json:"dwellSeconds"`
-	OutputDir            string       `json:"outputDir"`
-	PreviewRows          int          `json:"previewRows"`
-	EnforceReadOnly      bool         `json:"enforceReadOnly"`
-	Screenshots          bool         `json:"screenshots"`
-	Video                bool         `json:"video"`
-	MonitorIndex         int          `json:"monitorIndex"`
-	StopOnError          bool         `json:"stopOnError"`
-	Theme                string       `json:"theme"`        // "system" | "light" | "dark"
-	PsqlPath             string       `json:"psqlPath"`     // override; empty = auto-detect
-	FfmpegPath           string       `json:"ffmpegPath"`   // override; empty = auto-detect
-	SaveQuerySQL         bool         `json:"saveQuerySQL"` // write NNNN_slug.sql per query
-	Zip                  bool         `json:"zip"`
-	ZipPasswordMode      string       `json:"zipPasswordMode"` // "none" | "explicit" | "auto"
-	ZipPassword          string       `json:"zipPassword"`     // explicit mode only; stored plaintext
-	DeleteSourcesAfterZip bool        `json:"deleteSourcesAfterZip"`
-	ExcludeVideoFromZip  bool         `json:"excludeVideoFromZip"` // keep run.mp4 out of the archive (and out of prune)
-	WindowWidth          int          `json:"windowWidth,omitempty"`  // last OS window size; 0 = use default
-	WindowHeight         int          `json:"windowHeight,omitempty"`
+	Connections           []Connection `json:"connections"`
+	SelectedConnectionID  string       `json:"selectedConnectionId"`
+	DwellSeconds          int          `json:"dwellSeconds"`
+	OutputDir             string       `json:"outputDir"`
+	PreviewRows           int          `json:"previewRows"`
+	EnforceReadOnly       bool         `json:"enforceReadOnly"`
+	Screenshots           bool         `json:"screenshots"`
+	Video                 bool         `json:"video"`
+	MonitorIndex          int          `json:"monitorIndex"`
+	StopOnError           bool         `json:"stopOnError"`
+	Theme                 string       `json:"theme"`      // "system" | "light" | "dark"
+	PsqlPath              string       `json:"psqlPath"`   // override; empty = auto-detect
+	FfmpegPath            string       `json:"ffmpegPath"` // override; empty = auto-detect
+	Zip                   bool         `json:"zip"`
+	ZipPasswordMode       string       `json:"zipPasswordMode"` // "none" | "explicit" | "auto"
+	ZipPassword           string       `json:"zipPassword"`     // explicit mode only; stored plaintext
+	DeleteSourcesAfterZip bool         `json:"deleteSourcesAfterZip"`
+	ExcludeVideoFromZip   bool         `json:"excludeVideoFromZip"`   // keep run.mp4 out of the archive (and out of prune)
+	WindowWidth           int          `json:"windowWidth,omitempty"` // last OS window size; 0 = use default
+	WindowHeight          int          `json:"windowHeight,omitempty"`
 }
 
 // appDirName is the human-readable config/state dir (paths show "PgEvidence", not
@@ -124,17 +123,16 @@ func Default() Config {
 			User:    "postgres",
 			SSLMode: "prefer",
 		}},
-		SelectedConnectionID: "default",
-		DwellSeconds:         5,
-		OutputDir:            out,
-		PreviewRows:          20,
-		EnforceReadOnly:      true,
-		Screenshots:          true,
-		Video:                false,
-		MonitorIndex:         0,
-		StopOnError:          false,
+		SelectedConnectionID:  "default",
+		DwellSeconds:          5,
+		OutputDir:             out,
+		PreviewRows:           20,
+		EnforceReadOnly:       true,
+		Screenshots:           true,
+		Video:                 false,
+		MonitorIndex:          0,
+		StopOnError:           false,
 		Theme:                 "system",
-		SaveQuerySQL:          true,
 		Zip:                   true,
 		ZipPasswordMode:       "none",
 		ZipPassword:           "",

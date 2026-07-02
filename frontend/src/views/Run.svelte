@@ -221,14 +221,27 @@
       <pre class="sql">{current.sql}</pre>
 
       {#if result}
+        {#if result.sqlFile || result.status !== 'error'}
+          <div class="checksum">
+            {#if result.sqlFile}
+              <div class="cs-row">
+                <span class="lbl">SHA-256</span>
+                <code>{result.sqlFileSha256}</code>
+                <span class="file">{result.sqlFile}</span>
+              </div>
+            {/if}
+            {#if result.status !== 'error'}
+              <div class="cs-row">
+                <span class="lbl">SHA-256</span>
+                <code>{result.sha256}</code>
+                <span class="file">{result.resultFile}</span>
+              </div>
+            {/if}
+          </div>
+        {/if}
         {#if result.status === 'error'}
           <div class="error">Query failed: {result.error}</div>
         {:else}
-          <div class="checksum">
-            <span class="lbl">SHA-256</span>
-            <code>{result.sha256}</code>
-            <span class="file">{result.resultFile}</span>
-          </div>
           <div class="preview">
             <div class="prevhead">
               Result preview — showing {result.rows?.length ?? 0} of {result.rowCount} row{result.rowCount === 1 ? '' : 's'}
@@ -341,10 +354,12 @@
     background: var(--code-bg); border: 1px solid var(--border-strong); border-radius: 8px;
     padding: 14px; white-space: pre-wrap; word-break: break-word; max-height: 220px; overflow: auto;
   }
-  .checksum { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; background: var(--bg-2); border-radius: 8px; padding: 10px 14px; }
-  .checksum .lbl { color: var(--accent); font-weight: 700; font-size: 0.85rem; }
-  .checksum code { font-family: var(--mono); font-size: 0.95rem; word-break: break-all; }
-  .checksum .file { color: var(--muted); font-family: var(--mono); font-size: 0.85rem; margin-left: auto; }
+  .checksum { display: flex; flex-direction: column; gap: 8px; background: var(--bg-2); border-radius: 8px; padding: 10px 14px; }
+  .cs-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .cs-row + .cs-row { border-top: 1px solid var(--border-strong); padding-top: 8px; }
+  .cs-row .lbl { color: var(--accent); font-weight: 700; font-size: 0.85rem; }
+  .cs-row code { font-family: var(--mono); font-size: 0.95rem; word-break: break-all; }
+  .cs-row .file { color: var(--muted); font-family: var(--mono); font-size: 0.85rem; margin-left: auto; }
   .preview { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
   .prevhead { font-size: 0.85rem; color: var(--muted); margin-bottom: 6px; }
   .tablewrap { border: 1px solid var(--border-strong); border-radius: 8px; flex: 1 1 auto; min-height: 0; }

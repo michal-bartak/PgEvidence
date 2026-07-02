@@ -48,6 +48,7 @@ is legacy **ZipCrypto** for broad compatibility (opens with macOS `unzip`, Windo
 ```bash
 cd audit-run-YYYYMMDD-HHMMSS
 sha256sum -c *.csv.sha256          # every CSV result
+sha256sum -c *.sql.sha256          # every query file
 sha256sum -c manifest.json.sha256  # the run manifest
 ```
 

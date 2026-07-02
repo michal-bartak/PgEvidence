@@ -11,7 +11,8 @@ maintained set of SQL queries against PostgreSQL one-by-one and produces
 **tamper-evident audit evidence** for each query:
 
 - a CSV result file (`NNNN_<slug>.csv`) via the system `psql --csv`,
-- optionally the query text itself (`NNNN_<slug>.sql`, no checksum; `SaveQuerySQL`),
+- always the query text itself (`NNNN_<slug>.sql`) with its own checksum sidecar
+  (`NNNN_<slug>.sql.sha256`) — the exact query is tamper-evidence, like the result,
 - a sha256sum-compatible checksum sidecar (`NNNN_<slug>.csv.sha256`),
 - a **full-desktop screenshot** (`NNNN_<slug>.png`) taken after a configurable
   dwell time, so the OS clock is captured in-frame as proof-of-time,
@@ -480,6 +481,15 @@ decision is made or reversed.
   `CHANGELOG.md`; the `release` job extracts the tag's section and stacks it above the
   install block (`body_path`), with `generate_release_notes` appending GitHub's auto
   "What's Changed" list. Diverges from OSC (auto notes + static body only, no CHANGELOG).
+- **Per-query `.sql` is now always written AND checksummed** (reverses the earlier
+  "optional `.sql`, no checksum" decision). Every query writes `NNNN_<slug>.sql` plus a
+  `NNNN_<slug>.sql.sha256` sidecar (via the same `checksum.WriteSidecar` the CSV uses),
+  recorded in the manifest as `sqlFileSha256` / `sqlChecksumFile` — so the exact query
+  text is tamper-evidence and is covered by `manifest.json.sha256`. (The result CSV hash
+  is likewise recorded as `resultFileSha256`.) The `SaveQuerySQL` config
+  flag and its Settings toggle were removed. A `.sql` write/checksum failure is logged
+  non-fatally (the CSV stays the authoritative evidence whose checksum failure errors
+  the query). Auditors treat the query text as evidence, not just reproducible input.
 - Plans of record (newest last): build, polish, ZIP archiving, release packaging,
   theming+Run controls+hints, Settings auto-save/password/tool-paths, and per-run
   Run controls + Settings "Saved" flash — under `~/.claude/plans/`.

@@ -24,35 +24,37 @@ type ConnInfo struct {
 
 // QueryRecord captures the result of running one query.
 type QueryRecord struct {
-	Index          int    `json:"index"`
-	Name           string `json:"name"`
-	SQL            string `json:"sql"`
-	SQLFile        string `json:"sqlFile,omitempty"`
-	ResultFile     string `json:"resultFile"`
-	ChecksumFile   string `json:"checksumFile"`
-	ScreenshotFile string `json:"screenshotFile,omitempty"`
-	SHA256         string `json:"sha256"`
-	RowCount       int    `json:"rowCount"`
-	StartedAt      string `json:"startedAt"`
-	EndedAt        string `json:"endedAt"`
-	DurationMS     int64  `json:"durationMs"`
-	Status         string `json:"status"` // "ok" | "error"
-	Error          string `json:"error,omitempty"`
+	Index           int    `json:"index"`
+	Name            string `json:"name"`
+	SQL             string `json:"sql"`
+	SQLFile         string `json:"sqlFile,omitempty"`
+	SQLSHA256       string `json:"sqlFileSha256,omitempty"`
+	SQLChecksumFile string `json:"sqlChecksumFile,omitempty"`
+	ResultFile      string `json:"resultFile"`
+	ChecksumFile    string `json:"checksumFile"`
+	ScreenshotFile  string `json:"screenshotFile,omitempty"`
+	SHA256          string `json:"resultFileSha256"`
+	RowCount        int    `json:"rowCount"`
+	StartedAt       string `json:"startedAt"`
+	EndedAt         string `json:"endedAt"`
+	DurationMS      int64  `json:"durationMs"`
+	Status          string `json:"status"` // "ok" | "error"
+	Error           string `json:"error,omitempty"`
 }
 
 // Manifest is the top-level run record written to manifest.json.
 type Manifest struct {
-	AppVersion      string        `json:"appVersion"`
-	PSQLVersion     string        `json:"psqlVersion"`
-	Connection      ConnInfo      `json:"connection"`
-	GeneratedAt     string        `json:"generatedAt"`
-	RunDir          string        `json:"runDir"`
-	DwellSeconds    int           `json:"dwellSeconds"`
-	ReadOnly        bool          `json:"readOnly"`
-	Screenshots     bool          `json:"screenshots"`
-	Video           bool          `json:"video"`
-	VideoFile       string        `json:"videoFile,omitempty"`
-	Queries         []QueryRecord `json:"queries"`
+	AppVersion   string        `json:"appVersion"`
+	PSQLVersion  string        `json:"psqlVersion"`
+	Connection   ConnInfo      `json:"connection"`
+	GeneratedAt  string        `json:"generatedAt"`
+	RunDir       string        `json:"runDir"`
+	DwellSeconds int           `json:"dwellSeconds"`
+	ReadOnly     bool          `json:"readOnly"`
+	Screenshots  bool          `json:"screenshots"`
+	Video        bool          `json:"video"`
+	VideoFile    string        `json:"videoFile,omitempty"`
+	Queries      []QueryRecord `json:"queries"`
 }
 
 // Write serialises the manifest to <dir>/manifest.json and writes a sibling

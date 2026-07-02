@@ -194,7 +194,6 @@
       <div class="toggles">
         <label class="toggle"><input type="checkbox" bind:checked={c.enforceReadOnly} /> Enforce read-only transactions</label>
         <label class="toggle"><input type="checkbox" bind:checked={c.screenshots} /> Full-screen screenshot per query</label>
-        <label class="toggle"><input type="checkbox" bind:checked={c.saveQuerySQL} /> Save each query as a .sql file</label>
         <label class="toggle" class:disabled={!$env?.ffmpegFound}>
           <input type="checkbox" bind:checked={c.video} disabled={!$env?.ffmpegFound} />
           Record video (ffmpeg){#if !$env?.ffmpegFound}<span class="muted"> — ffmpeg not installed</span>{/if}
