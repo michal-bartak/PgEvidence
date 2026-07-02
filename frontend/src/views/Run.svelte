@@ -61,9 +61,9 @@
     archiving = true; archiveError = ''; archiveResult = null; pruned = false;
     const excludeVideo = $runOpts?.excludeVideoFromZip ?? false;
     try {
-      // ZIP password policy is a Settings concern (read from $cfg); whether to ZIP
-      // at all and what to exclude/prune is per-run ($runOpts).
-      const mode = $cfg?.zipPasswordMode ?? 'none';
+      // ZIP enablement AND password mode are per-run ($runOpts, seeded from Settings
+      // at app start). The explicit-password *value* stays a Settings concern ($cfg).
+      const mode = $runOpts?.zipPasswordMode ?? 'none';
       if (mode === 'auto') {
         archiveResult = await ArchiveRunAuto(runDir, excludeVideo);
       } else if (mode === 'explicit') {
@@ -88,6 +88,10 @@
       archiving = false;
     }
   }
+
+  // Svelte action: focus the node when it mounts. The password input is rendered
+  // only while the modal is open, so this focuses it each time the modal appears.
+  function focusOnMount(node: HTMLInputElement) { node.focus(); }
 
   function askPassword(): Promise<string | null> {
     pwInput = ''; pwModalOpen = true;
@@ -144,7 +148,23 @@
   // They are seeded from saved settings at app start (see App.svelte).
   function toggleScreenshots() { if (!$runOpts) return; $runOpts.screenshots = !$runOpts.screenshots; $runOpts = $runOpts; }
   function toggleVideo() { if (!$runOpts || !$env?.ffmpegFound) return; $runOpts.video = !$runOpts.video; $runOpts = $runOpts; }
-  function toggleZip() { if (!$runOpts) return; $runOpts.zip = !$runOpts.zip; $runOpts = $runOpts; }
+  // The ZIP control cycles through four states on each click: off → on/no password →
+  // on/random password → on/explicit password → off. Seeded from Settings at start.
+  const ZIP_STATES = [
+    { zip: false, mode: 'none' as const, label: 'off' },
+    { zip: true, mode: 'none' as const, label: 'on · no password' },
+    { zip: true, mode: 'auto' as const, label: 'on · random password' },
+    { zip: true, mode: 'explicit' as const, label: 'on · password' },
+  ];
+  function zipStateIndex(o: { zip: boolean; zipPasswordMode: string }): number {
+    if (!o.zip) return 0;
+    return o.zipPasswordMode === 'auto' ? 2 : o.zipPasswordMode === 'explicit' ? 3 : 1;
+  }
+  function cycleZip() {
+    if (!$runOpts) return;
+    const s = ZIP_STATES[(zipStateIndex($runOpts) + 1) % ZIP_STATES.length];
+    $runOpts.zip = s.zip; $runOpts.zipPasswordMode = s.mode; $runOpts = $runOpts;
+  }
   function toggleDelete() { if (!$runOpts) return; $runOpts.deleteSourcesAfterZip = !$runOpts.deleteSourcesAfterZip; $runOpts = $runOpts; }
   function toggleExcludeVideo() { if (!$runOpts) return; $runOpts.excludeVideoFromZip = !$runOpts.excludeVideoFromZip; $runOpts = $runOpts; }
 </script>
@@ -172,8 +192,8 @@
           Video: {$runOpts?.video && $env?.ffmpegFound ? 'on' : 'off'}
         </button>
       </span>
-      <button class="toggle" class:on={$runOpts?.zip} on:click={toggleZip} disabled={running}>
-        ZIP: {$runOpts?.zip ? 'on' : 'off'}
+      <button class="toggle" class:on={$runOpts?.zip} on:click={cycleZip} disabled={running}>
+        ZIP: {$runOpts ? ZIP_STATES[zipStateIndex($runOpts)].label : 'off'}
       </button>
       <button class="toggle" class:on={$runOpts?.zip && $runOpts?.deleteSourcesAfterZip}
         on:click={toggleDelete} disabled={running || !$runOpts?.zip}>
@@ -310,7 +330,7 @@
       <div class="modal card">
         <h3>ZIP password</h3>
         <p class="muted">Enter a password to encrypt the archive, or cancel to skip archiving.</p>
-        <input type="password" bind:value={pwInput} placeholder="password"
+        <input type="password" bind:value={pwInput} placeholder="password" use:focusOnMount
           on:keydown={(e) => e.key === 'Enter' && pwSubmit()} />
         <div class="row" style="margin-top:12px;">
           <div class="spacer"></div>

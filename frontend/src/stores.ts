@@ -14,6 +14,7 @@ export interface RunOpts {
   screenshots: boolean;
   video: boolean;
   zip: boolean;
+  zipPasswordMode: 'none' | 'explicit' | 'auto';
   deleteSourcesAfterZip: boolean;
   excludeVideoFromZip: boolean;
   connectionId: string;

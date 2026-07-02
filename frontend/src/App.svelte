@@ -22,6 +22,7 @@
         screenshots: $cfg.screenshots,
         video: $cfg.video,
         zip: $cfg.zip,
+        zipPasswordMode: ($cfg.zipPasswordMode as 'none' | 'explicit' | 'auto') ?? 'none',
         deleteSourcesAfterZip: $cfg.deleteSourcesAfterZip,
         excludeVideoFromZip: $cfg.excludeVideoFromZip,
         connectionId: $cfg.selectedConnectionId,

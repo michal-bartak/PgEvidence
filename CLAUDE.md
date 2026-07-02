@@ -429,7 +429,12 @@ decision is made or reversed.
   They drive the current run but never write back — Settings stays the persisted
   source of truth. `StartRun(screenshots, video, connectionID)` applies them as
   overrides without saving; `ArchiveRun/ArchiveRunAuto/PruneRunDir` take the
-  exclude/keep-video flag explicitly (ZIP password policy stays a Settings concern).
+  exclude/keep-video flag explicitly. The ZIP password *mode* (`none`/`auto`/
+  `explicit`) is also a per-run control now: the Run-page ZIP button cycles off →
+  on·no-password → on·random-password → on·password, seeded from Settings
+  (`zip`+`zipPasswordMode`) at start and stored in `runOpts.zipPasswordMode`;
+  `archive()` reads the mode from `runOpts`. The explicit-password *value* stays a
+  Settings concern (`$cfg.zipPassword` — used if set, else prompted).
   Reverses the earlier "Run controls write the shared cfg + persist" decision.
 - **Settings save feedback = flash the Settings tab, not a floating chip.** A
   `savedTick` counter (bumped after each auto-save) drives a two-phase flash in

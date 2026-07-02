@@ -10,12 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Selecting source screen for screenshots automatically. Removed screen selector
 - The per-query `.sql` file is now always written and gets its own SHA-256 checksum
-  (`NNNN_<slug>.sql.sha256`), recorded in `manifest.json`, so the exact query text is
-  tamper-evidence like the CSV result.
 
 ### Changed
-- Removed the optional "Save each query as a .sql file" setting — query files are
-  always saved now.
+- Removed the optional "Save each query as a .sql file" setting
+- The Run-page ZIP control now cycles through four states on click (off → on/no
+  password → on/random password → on/password)
 
 ### Fixed
 - [Linux] Fixed screenshots that were grabbed from all monitors.
