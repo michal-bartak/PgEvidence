@@ -64,7 +64,29 @@ func save(qs []Query) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(p, data, 0o644)
+	// Write atomically: a temp file in the same dir + rename over the target, so a
+	// crash/kill mid-write can't leave a truncated or empty queries.json (plain
+	// os.WriteFile truncates the file before writing the new content). Mirrors
+	// config.saveLocked.
+	tmp, err := os.CreateTemp(filepath.Dir(p), "queries-*.json.tmp")
+	if err != nil {
+		return err
+	}
+	tmpName := tmp.Name()
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
+		os.Remove(tmpName)
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		os.Remove(tmpName)
+		return err
+	}
+	if err := os.Rename(tmpName, p); err != nil {
+		os.Remove(tmpName)
+		return err
+	}
+	return nil
 }
 
 // normalize sorts by Order then renumbers Order to be contiguous (0..n-1).

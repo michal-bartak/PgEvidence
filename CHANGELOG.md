@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - [Windows] Video recorded all monitors instead of the recognized one.
+- Query saves are now atomic (temp file + rename), so a crash or forced quit
+  mid-save can no longer truncate or empty `queries.json`.
 
 ## [1.1.0] - 2026-07-03
 
