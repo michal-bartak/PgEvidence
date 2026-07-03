@@ -190,6 +190,15 @@ Module path is `pgevidence`; internal packages import as `pgevidence/internal/..
   grants don't apply to an already-running process — the app must be **quit and
   reopened** after enabling. Non-darwin stubs in `access_other.go` return true.
 - **Windows uses the kbinani path (GDI); `isBlank` guards all-black captures.**
+- **Windows video restricts `gdigrab` to the selected monitor.** Plain
+  `-f gdigrab -i desktop` grabs the whole *virtual* desktop (all monitors) — so video
+  leaked every screen while screenshots (kbinani `CaptureDisplay(index)`) were correct.
+  `ffmpegArgs` (recorder.go) now derives the monitor's rectangle from
+  `screenshot.GetDisplayBounds(displayIndex)` and passes `-offset_x/-offset_y/-video_size`
+  (rounded down to even for `yuv420p`) *before* `-i desktop`. Negative offsets (monitors
+  left/above primary) are valid and match kbinani's virtual-desktop coordinates; an
+  out-of-range/degenerate index falls back to the full desktop. Windows-only — the
+  macOS `avfoundation` and Linux `x11grab`/portal paths are unchanged.
 - **Linux screenshots: xdg-desktop-portal on Wayland, kbinani on X11.** The kbinani
   X11 path *clips* under fractional scaling (XWayland reports scaled root geometry),
   and the `gnome-screenshot` CLI is broken on recent GNOME (its
@@ -495,6 +504,16 @@ decision is made or reversed.
   flag and its Settings toggle were removed. A `.sql` write/checksum failure is logged
   non-fatally (the CSV stays the authoritative evidence whose checksum failure errors
   the query). Auditors treat the query text as evidence, not just reproducible input.
+- **Manual monitor selector removed; Auto is the sole mode.** The Settings "Monitor to
+  capture" dropdown is gone — with the app-window auto-resolution working, a manual pick
+  only risked capturing the wrong display. `resolveMonitorIndex` (app.go) is now
+  argumentless and always resolves the display under the window, called at *run start*
+  (in `StartRun`, not app start — the window may move between launch and Start).
+  `config.MonitorIndex` became `json:"-"`: no longer persisted or user-set, just the
+  per-run resolved index threaded to screenshot + video. Stored `monitorIndex` values in
+  old `config.json` are ignored. (The env-info "Displays" count row stays — informational.)
+  This work also fixed the Windows video path that recorded all monitors (see the
+  gdigrab gotcha above).
 - Plans of record (newest last): build, polish, ZIP archiving, release packaging,
   theming+Run controls+hints, Settings auto-save/password/tool-paths, and per-run
   Run controls + Settings "Saved" flash — under `~/.claude/plans/`.

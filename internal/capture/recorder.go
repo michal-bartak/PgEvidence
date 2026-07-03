@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/kbinani/screenshot"
+
 	"pgevidence/internal/proc"
 )
 
@@ -90,7 +92,22 @@ func ffmpegArgs(bin, outPath string, displayIndex int) ([]string, error) {
 		in := []string{"-f", "avfoundation", "-i", fmt.Sprintf("%d:none", idx)}
 		return append(append(common, in...), tail...), nil
 	case "windows":
-		in := []string{"-f", "gdigrab", "-i", "desktop"}
+		// gdigrab captures the whole virtual desktop by default; restrict it to the
+		// selected monitor's rectangle via -offset_x/-offset_y/-video_size (these
+		// must precede -i). Bounds come from the same source the screenshot path
+		// trusts (kbinani GetDisplayBounds), so video matches the PNG.
+		in := []string{"-f", "gdigrab"}
+		if n := screenshot.NumActiveDisplays(); displayIndex >= 0 && displayIndex < n {
+			b := screenshot.GetDisplayBounds(displayIndex)
+			w, h := b.Dx()&^1, b.Dy()&^1 // round down to even; yuv420p requires it
+			if w > 0 && h > 0 {
+				in = append(in,
+					"-offset_x", strconv.Itoa(b.Min.X),
+					"-offset_y", strconv.Itoa(b.Min.Y),
+					"-video_size", fmt.Sprintf("%dx%d", w, h))
+			}
+		}
+		in = append(in, "-i", "desktop")
 		return append(append(common, in...), tail...), nil
 	case "linux":
 		in := []string{"-f", "x11grab", "-i", ":0.0"}

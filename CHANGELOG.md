@@ -5,6 +5,14 @@ All notable changes to **PgEvidence** are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-07-03
+
+### Changed
+- Removed the monitor selector; capture always follows the app-window monitor.
+
+### Fixed
+- [Windows] Video recorded all monitors instead of the recognized one.
+
 ## [1.1.0] - 2026-07-03
 
 ### Added

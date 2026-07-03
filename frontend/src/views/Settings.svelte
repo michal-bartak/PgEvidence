@@ -29,7 +29,6 @@
   $: c = $cfg;
   $: connIdx = c ? c.connections.findIndex((x) => x.id === c.selectedConnectionId) : -1;
   $: conn = c && connIdx >= 0 ? c.connections[connIdx] : null;
-  $: displays = $env?.numDisplays ?? 1;
 
   // Reset/refresh the password field only when the selected connection changes,
   // so unrelated config edits (theme, etc.) don't clear what the user typed.
@@ -183,13 +182,6 @@
           <Stepper id="prev" min={0} bind:value={c.previewRows} on:change={autoSave} />
         </div>
       </div>
-
-      <label for="mon" style="margin-top:12px;">Monitor to capture
-        <Hint text="Which monitor to screenshot/record. 'Auto' picks the monitor showing the app window. On multi-monitor Wayland the capture is cropped to the chosen display so the others aren't included." />
-      </label>
-      <Select id="mon" bind:value={c.monitorIndex} on:change={autoSave}
-        options={[{ value: -1, label: 'Auto — monitor with the app window' },
-          ...Array.from({ length: Math.max(displays, 1) }, (_, i) => ({ value: i, label: `Display ${i}` }))]} />
 
       <div class="toggles">
         <label class="toggle"><input type="checkbox" bind:checked={c.enforceReadOnly} /> Enforce read-only transactions</label>

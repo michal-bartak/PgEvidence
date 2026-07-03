@@ -37,7 +37,7 @@ type Config struct {
 	EnforceReadOnly       bool         `json:"enforceReadOnly"`
 	Screenshots           bool         `json:"screenshots"`
 	Video                 bool         `json:"video"`
-	MonitorIndex          int          `json:"monitorIndex"`
+	MonitorIndex          int          `json:"-"` // per-run resolved display index (Auto); not persisted or user-set
 	StopOnError           bool         `json:"stopOnError"`
 	Theme                 string       `json:"theme"`      // "system" | "light" | "dark"
 	PsqlPath              string       `json:"psqlPath"`   // override; empty = auto-detect
@@ -130,7 +130,6 @@ func Default() Config {
 		EnforceReadOnly:       true,
 		Screenshots:           true,
 		Video:                 false,
-		MonitorIndex:          0,
 		StopOnError:           false,
 		Theme:                 "system",
 		Zip:                   true,

@@ -238,9 +238,10 @@ func (a *App) StartRun(screenshots bool, video bool, connectionID string) error 
 	// Per-run overrides (not saved): the Run page is the authority for these.
 	cfg.Screenshots = screenshots
 	cfg.Video = video
-	// Resolve "Auto" (MonitorIndex < 0) to the concrete display showing the app
-	// window, so the rest of the run (screenshots + video) targets one monitor.
-	cfg.MonitorIndex = a.resolveMonitorIndex(cfg.MonitorIndex)
+	// Resolve the concrete display showing the app window at run start (not app
+	// start — the window may have moved), so the rest of the run (screenshots +
+	// video) targets that one monitor.
+	cfg.MonitorIndex = a.resolveMonitorIndex()
 	if connectionID == "" {
 		connectionID = cfg.SelectedConnectionID
 	}
@@ -303,19 +304,16 @@ func (a *App) StartRun(screenshots bool, video bool, connectionID string) error 
 	return nil
 }
 
-// resolveMonitorIndex turns the configured monitor selection into a concrete
-// 0-based display index. A negative value means "Auto": capture the monitor that
-// shows the app window.
+// resolveMonitorIndex returns the concrete 0-based index of the display showing
+// the app window ("Auto"). This is the sole monitor-selection mode — there is no
+// manual selector.
 //
 // macOS resolves this natively (CoreGraphics window list, global coordinates),
 // because Wails' WindowGetPosition there is screen-relative, not global, so it
 // can't be matched against the display bounds. Elsewhere we use the window centre
 // from Wails' position (global on X11/Windows). It falls back to display 0 when
 // the position is unavailable (notably pure Wayland, which hides window coords).
-func (a *App) resolveMonitorIndex(idx int) int {
-	if idx >= 0 {
-		return idx
-	}
+func (a *App) resolveMonitorIndex() int {
 	if i, ok := capture.DisplayContainingWindow(); ok {
 		return i
 	}
