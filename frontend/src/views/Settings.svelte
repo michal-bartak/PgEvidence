@@ -5,6 +5,7 @@
     SaveConfig, SelectOutputDir, SelectFile, TestConnection, DetectEnvironment,
     SetSessionPassword, HasSessionPassword, UpdateTheme,
   } from '../../wailsjs/go/main/App';
+  import { ClipboardSetText } from '../../wailsjs/runtime/runtime';
   import { applyTheme } from '../theme';
   import Hint from '../components/Hint.svelte';
   import Select from '../components/Select.svelte';
@@ -25,6 +26,20 @@
   let busy = false;
   let saveTimer: any;
   let prevConnId = '';
+  let copiedCfg = false;
+  let copyTimer: any;
+
+  // Copy the config directory path to the clipboard, with a brief "copied" tick.
+  async function copyConfigDir() {
+    const p = $env?.configDir;
+    if (!p) return;
+    try {
+      await ClipboardSetText(p);
+      copiedCfg = true;
+      clearTimeout(copyTimer);
+      copyTimer = setTimeout(() => (copiedCfg = false), 1200);
+    } catch {}
+  }
 
   $: c = $cfg;
   $: connIdx = c ? c.connections.findIndex((x) => x.id === c.selectedConnectionId) : -1;
@@ -268,8 +283,21 @@
         <tr><td>psql</td><td>{$env?.psqlFound ? $env.psqlVersion : 'not found'}</td></tr>
         <tr><td>psql path</td><td class="mono">{$env?.psqlPath || '—'}</td></tr>
         <tr><td>ffmpeg</td><td>{$env?.ffmpegFound ? 'available' : 'not installed (video disabled)'}</td></tr>
-        <tr><td>Displays</td><td>{$env?.numDisplays}</td></tr>
-        <tr><td>Config dir</td><td class="mono">{$env?.configDir}</td></tr>
+        <tr><td>Config dir</td>
+          <td class="mono">
+            <span class="cfgpath">{$env?.configDir || '—'}</span>
+            {#if $env?.configDir}
+              <button class="copybtn" type="button" on:click={copyConfigDir}
+                title="Copy path to clipboard" aria-label="Copy config path">
+                {#if copiedCfg}
+                  <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M20 6 9 17l-5-5"/></svg>
+                {:else}
+                  <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+                {/if}
+              </button>
+            {/if}
+          </td>
+        </tr>
       </table>
     </div>
   </div>
@@ -297,4 +325,12 @@
   table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
   td { padding: 4px 8px; border-bottom: 1px solid var(--border-strong); vertical-align: top; }
   td:first-child { color: var(--muted); width: 110px; }
+  .cfgpath { vertical-align: middle; }
+  .copybtn {
+    display: inline-flex; align-items: center; justify-content: center;
+    margin-left: 8px; padding: 3px; line-height: 0; vertical-align: middle;
+    border: 1px solid var(--border-strong); border-radius: 6px;
+    background: transparent; color: var(--muted); cursor: pointer;
+  }
+  .copybtn:hover { color: var(--text); border-color: var(--accent); }
 </style>

@@ -27,11 +27,6 @@ func debugf(format string, a ...interface{}) {
 	}
 }
 
-// NumDisplays reports how many active displays the OS exposes.
-func NumDisplays() int {
-	return screenshot.NumActiveDisplays()
-}
-
 // Screenshot captures the full screen of the given display index and writes it
 // as a PNG to outPath. Capturing the whole display (rather than just the app
 // window) ensures the OS clock and status bar are part of the evidence.

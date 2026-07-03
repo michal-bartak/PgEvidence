@@ -132,7 +132,6 @@ type EnvInfo struct {
 	PSQLPath     string `json:"psqlPath"`
 	PSQLVersion  string `json:"psqlVersion"`
 	FFmpegFound  bool   `json:"ffmpegFound"`
-	NumDisplays  int    `json:"numDisplays"`
 	ConfigDir    string `json:"configDir"`
 	ScreenAccess bool   `json:"screenAccess"`
 	AppVersion   string `json:"appVersion"`
@@ -145,7 +144,6 @@ func (a *App) DetectEnvironment() EnvInfo {
 	}
 	info := EnvInfo{
 		FFmpegFound:  capture.FFmpegAvailable(),
-		NumDisplays:  capture.NumDisplays(),
 		ScreenAccess: capture.HasScreenAccess(),
 		AppVersion:   AppVersion,
 		AppName:      AppName,

@@ -7,8 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.2.0] - 2026-07-03
 
+### Added
+- Copy the config directory path to the clipboard from Settings → Environment.
+
 ### Changed
 - Removed the monitor selector; capture always follows the app-window monitor.
+- Removed the Displays count from Settings → Environment.
 
 ### Fixed
 - [Windows] Video recorded all monitors instead of the recognized one.
