@@ -7,9 +7,11 @@
   import Queries from './views/Queries.svelte';
   import Run from './views/Run.svelte';
   import Settings from './views/Settings.svelte';
+  import About from './components/About.svelte';
 
   let loaded = false;
   let loadError = '';
+  let aboutOpen = false;
 
   onMount(async () => {
     try {
@@ -92,7 +94,8 @@
       <span class="dot"></span>
       <strong>{$env?.appName ?? 'PgEvidence'}</strong>
       {#if $env?.appVersion}<span class="ver">v{$env.appVersion}</span>{/if}
-      <span class="muted">— reproducible, checksummed DB extracts</span>
+      <button class="info" title="About PgEvidence" aria-label="About PgEvidence"
+        on:click={() => (aboutOpen = true)}>ⓘ</button>
     </div>
     <nav>
       {#each tabs as t}
@@ -147,6 +150,8 @@
   </main>
 </div>
 
+<About bind:open={aboutOpen} />
+
 <style>
   .shell { display: flex; flex-direction: column; height: 100%; }
   header {
@@ -161,6 +166,14 @@
   .brand { display: flex; align-items: center; gap: 8px; font-size: 1rem; }
   .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); }
   .ver { font-size: 0.72rem; color: var(--muted); background: var(--bg); border: 1px solid var(--border-strong); border-radius: 10px; padding: 1px 7px; }
+  .info {
+    width: 22px; height: 22px; padding: 0; line-height: 1;
+    border-radius: 50%; font-size: 0.95rem;
+    background: transparent; border: 1px solid transparent; color: var(--muted);
+    display: inline-flex; align-items: center; justify-content: center;
+    position: relative; top: 1px;
+  }
+  .info:not(:disabled):hover { color: var(--text); background: var(--bg-3); }
   nav { display: flex; gap: 6px; }
   .tab { background: transparent; position: relative; }
   .tab.active { background: var(--accent-2); border-color: var(--accent-2); color: var(--on-accent); }
